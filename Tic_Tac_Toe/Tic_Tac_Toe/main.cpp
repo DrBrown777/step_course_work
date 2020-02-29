@@ -1,4 +1,4 @@
-#include <iostream>
+ï»¿#include <iostream>
 
 using namespace std;
 
@@ -10,7 +10,7 @@ char field_var[9] = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
 void name()
 {
-	cout << "\t" << "<-xxx Êðåñòèêè-íîëèêè ooo->" << "\n\n";
+	cout << "\t" << "<-xxx ÐšÑ€ÐµÑÑ‚Ð¸ÐºÐ¸-Ð½Ð¾Ð»Ð¸ÐºÐ¸ ooo->" << "\n\n";
 }
 
 void setup()
@@ -37,7 +37,7 @@ void draw_field()
 int input_events()
 {
 	int move;
-	cout << "Âàðèàíò õîäà:" << endl;
+	cout << "Ð’Ð°Ñ€Ð¸Ð°Ð½Ñ‚ Ñ…Ð¾Ð´Ð°:" << endl;
 	for (int i = 0; i < 9; i++)
 	{
 		if (i == 2 || i == 5 || i == 8)
@@ -46,7 +46,7 @@ int input_events()
 			cout << "\t" << "-" << field_var[i] << "-  |";
 	}
 	cout << endl;
-	cout << "Ñäåëàéòå õîä (1-9) -> ";
+	cout << "Ð¡Ð´ÐµÐ»Ð°Ð¹Ñ‚Ðµ Ñ…Ð¾Ð´ (1-9) -> ";
 	cin >> move;
 	field[move - 1] = 'X';
 	field_var[move - 1] = '-';
@@ -68,11 +68,11 @@ int main()
 
 	name();
 
-	cout << "\tÂûáåðèòå âàðèàíò èãðû:" << endl;
-	cout << "\t1 - Ïðîòèâ êîìïüþòåðà \"Random\" ñòðàòåãèÿ" << endl;
-	cout << "\t2 - Ïðîòèâ êîìïüþòåðà \"Self Learnig\" ñòðàòåãèÿ" << endl;
-	cout << "\t3 - Èãðàòü â äâîåì" << endl;
-	cout << "\t0 - Âûõîä" << endl;
+	cout << "\tÐ’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ Ð²Ð°Ñ€Ð¸Ð°Ð½Ñ‚ Ð¸Ð³Ñ€Ñ‹:" << endl;
+	cout << "\t1 - ÐŸÑ€Ð¾Ñ‚Ð¸Ð² ÐºÐ¾Ð¼Ð¿ÑŒÑŽÑ‚ÐµÑ€Ð° \"Random\" ÑÑ‚Ñ€Ð°Ñ‚ÐµÐ³Ð¸Ñ" << endl;
+	cout << "\t2 - ÐŸÑ€Ð¾Ñ‚Ð¸Ð² ÐºÐ¾Ð¼Ð¿ÑŒÑŽÑ‚ÐµÑ€Ð° \"Self Learnig\" ÑÑ‚Ñ€Ð°Ñ‚ÐµÐ³Ð¸Ñ" << endl;
+	cout << "\t3 - Ð˜Ð³Ñ€Ð°Ñ‚ÑŒ Ð² Ð´Ð²Ð¾ÐµÐ¼" << endl;
+	cout << "\t0 - Ð’Ñ‹Ñ…Ð¾Ð´" << endl;
 	cin >> menu;
 	switch (menu)
 	{
