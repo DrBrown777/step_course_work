@@ -60,7 +60,7 @@ void game_logic(int type_game, int move)
 
 int main()
 {
-	setlocale(0, "");
+	setlocale(LC_ALL, "Russian");
 
 	int menu, type_game, move;
 
