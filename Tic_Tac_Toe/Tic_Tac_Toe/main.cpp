@@ -20,6 +20,28 @@ void setup()
 
 }
 
+void type_symbol(char* player_1, char* player_2)
+{
+	int type_symbol = rand() % 2 + 1;
+
+	if (type_symbol == 2)
+	{
+		cout << "\tСлучайным образом определено что Вы играете за нолики O." << endl;
+		cout << "\tПротивник играет за крестики Х (крестики ходят первыми)." << endl;
+		*player_1 = 'O'; *player_2 = 'X';
+		cout << endl;
+		system("pause");
+	}
+	else
+	{
+		cout << "\tСлучайным образом определено что Вы играете за крестики Х" << endl;
+		cout << "\t(крестики ходят первыми). Противник играет за нолики O." << endl;
+		*player_1 = 'X'; *player_2 = 'O';
+		cout << endl;
+		system("pause");
+	}
+}
+
 void gen_field(char* pField, char* pFieldVar, int field_size)
 {
 	for (int i = 0; i < field_size; i++)
@@ -74,12 +96,14 @@ void game_logic(int type_game, int move, char symbol_player, char symbol_pc)
 int main()
 {
 	setlocale(LC_ALL, "Russian");
+	srand(unsigned(time(0)));
 
-	int menu, type_player, move;
-	char symbol_player, symbol_pc;
+	int menu, type_game, move;
+	char symbol_player_1, symbol_player_2;
 
-	setup(); name();
+	setup(); 
 	
+	name();
 	cout << "\tВыберите вариант игры:" << endl;
 	cout << "\t1 - Против компьютера \"Random\" стратегия" << endl;
 	cout << "\t2 - Против компьютера \"Self Learnig\" стратегия" << endl;
@@ -89,31 +113,20 @@ int main()
 	switch (menu)
 	{
 	case 1:
-		type_player = 1;
+		type_game = 1;
+		type_symbol(&symbol_player_1, &symbol_player_2);
 		break;
 	case 2:
-		type_player = 2;
+		type_game = 2;
+		type_symbol(&symbol_player_1, &symbol_player_2);
 		break;
 	case 3:
-		type_player = 3;
+		type_game = 3;
+		type_symbol(&symbol_player_1, &symbol_player_2);
 		break;
 	default:
 		game_over = true;
 		break;
-	}
-
-	cout << "\tВыберите чем играть (X или O): ";
-	cin >> symbol_player;
-	
-	if (symbol_player == 'x')
-	{
-		symbol_player = 'X';
-		symbol_pc = 'O';
-	}
-	else if (symbol_player == 'o' || symbol_player == '0')
-	{
-		symbol_player = 'O';
-		symbol_pc = 'X';
 	}
 
 	gen_field(pField, pFieldVar, field_size);
@@ -124,7 +137,7 @@ int main()
 		
 		move = input_events();
 		
-		game_logic(type_player, move, symbol_player, symbol_pc);
+		game_logic(type_game, move, symbol_player_1, symbol_player_2);
 	}
 
 	delete[] pField;
