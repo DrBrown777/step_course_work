@@ -74,38 +74,31 @@ void draw_field()
 
 int random_player()/*Не работает*/
 {
-	int move = 0;
-	int count = 0;
+	int rez = 0, count = 0;
 	
 	for (int i = 0; i < field_size; i++)
 	{
 		if (pField[i] == ' ') count++;
 	}
 	
-	int* tmp = new int[count];
+	int* pTmp = new int[count];
 	
-	for (int i = 0, j = 0; i < count; i++)
+	for (int i = 0, j = 0; i < field_size; i++)
 	{
-		if (pField[i] == ' ') 
+		if (pField[i] == ' ')
 		{
-			tmp[j] = i;
+			pTmp[j] = i;
 			j++;
 		}
 	}
 
 	int i = rand() % count;
-	cout << i << endl;
-	move = tmp[i];
-	cout << count << endl;
 	
-	for (int i = 0; i < count; i++)
-	{
-		cout << tmp[i] << " ";
-	}
+	rez = pTmp[i];
 	
-	delete[] tmp;
-	system("pause");
-	return move;
+	delete[] pTmp;
+	
+	return rez;
 }
 
 int input_events()
@@ -148,8 +141,8 @@ void game_logic(int type_game, int move, char symbol_player_1, char symbol_playe
 	else
 	{
 		system("pause");
-		pField[move - 1] = symbol_player_2;
-		pFieldVar[move - 1] = '-';
+		pField[move-1] = symbol_player_2;
+		pFieldVar[move-1] = '-';
 		/*Нужна проверка на выигрыш*/
 		step = true;
 	}
