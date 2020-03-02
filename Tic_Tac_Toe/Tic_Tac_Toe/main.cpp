@@ -74,21 +74,36 @@ void draw_field()
 
 int random_player()/*Не работает*/
 {
-	int move;
+	int move = 0;
 	int count = 0;
+	
 	for (int i = 0; i < field_size; i++)
 	{
-		if (pFieldVar[i] == '-') count++;
+		if (pField[i] == ' ') count++;
 	}
+	
 	int* tmp = new int[count];
-	for (int i = 0; i < field_size; i++)
+	
+	for (int i = 0, j = 0; i < count; i++)
 	{
-		if (pFieldVar[i] == '-') tmp[i] = i;
+		if (pField[i] == ' ') 
+		{
+			tmp[j] = i;
+			j++;
+		}
 	}
-	int i = rand() % count + 1;
+
+	int i = rand() % count;
+	cout << i << endl;
 	move = tmp[i];
-	cout << move << endl;
-	//delete[]tmp;
+	cout << count << endl;
+	
+	for (int i = 0; i < count; i++)
+	{
+		cout << tmp[i] << " ";
+	}
+	
+	delete[] tmp;
 	system("pause");
 	return move;
 }
