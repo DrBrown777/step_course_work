@@ -97,7 +97,7 @@ int random_player()/*Не работает*/
 	rez = pTmp[i];
 	
 	delete[] pTmp;
-	
+
 	return rez;
 }
 
@@ -141,8 +141,8 @@ void game_logic(int type_game, int move, char symbol_player_1, char symbol_playe
 	else
 	{
 		system("pause");
-		pField[move-1] = symbol_player_2;
-		pFieldVar[move-1] = '-';
+		pField[move] = symbol_player_2;
+		pFieldVar[move] = '-';
 		/*Нужна проверка на выигрыш*/
 		step = true;
 	}
