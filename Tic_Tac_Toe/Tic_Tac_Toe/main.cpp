@@ -4,25 +4,28 @@
 
 using namespace std;
 
-bool game_over, step, wins;
+bool game_over, step, wins; /*обьявление глобальных переменных*/
 
-int field_size = 9;
-char* pField = new char[field_size];
-char* pFieldVar = new char[field_size];
+int field_size = 9; /*размер игрового поля*/
+char* pField = new char[field_size]; /*выделения массива под игровое поле*/
+char* pFieldVar = new char[field_size]; /*выделение массива под поле с вариантами хода*/
 
 
 void name()
+/*Функция отображает приветствие*/
 {
 	cout << "\t" << "*Добро пожаловать в Tic-Tac-Toe!*" << "\n\n";
 }
 
 void setup()
+/*Функция определения флаговых переменных*/
 {
 	game_over = false;
 	wins = false; /*Дописать вывод позравления о выиграше и стату*/
 }
 
 void type_symbol(char* player_1, char* player_2)
+/*Функция рандомно определяет кто будет играть за X а кто за O*/
 {
 	int type_symbol = rand() % 2 + 1;
 
@@ -47,6 +50,7 @@ void type_symbol(char* player_1, char* player_2)
 }
 
 void clear_field(char* pField, char* pFieldVar, int field_size)
+/*Функция очищает игровое поле и поле с вариантами хода*/
 {
 	for (int i = 0; i < field_size; i++)
 	{
@@ -56,6 +60,7 @@ void clear_field(char* pField, char* pFieldVar, int field_size)
 }
 
 void draw_field()
+/*Функция выводит игровое поле*/
 {
 	system("cls");
 	if (step)
@@ -72,9 +77,10 @@ void draw_field()
 	cout << "\n\n";
 }
 
-int random_player()/*Не работает*/
+int random_player()
+/*Функция возвращает возможный ход, случайно, в стратегии Random*/
 {
-	int rez = 0, count = 0;
+	int move = 0, count = 0;
 	
 	for (int i = 0; i < field_size; i++)
 	{
@@ -94,14 +100,16 @@ int random_player()/*Не работает*/
 
 	int i = rand() % count;
 	
-	rez = pTmp[i];
+	move = pTmp[i];
 	
 	delete[] pTmp;
 
-	return rez;
+	return move;
 }
 
 int input_events()
+/*Функция возвращает ход сделанный пользователем с клавиатуры, 
+и выводит оставшиеся варианты хода*/
 {
 	int move;
 	cout << "Вариант хода:" << "\n\n";
@@ -130,6 +138,7 @@ int input_events()
 }
 
 void game_logic(int type_game, int move, char symbol_player_1, char symbol_player_2)
+/*Функция описывает логику игры, проверка на победу и др.*/
 {
 	if (step)
 	{
