@@ -137,6 +137,32 @@ int input_events()
 	return move;
 }
 
+void check_wins()
+/*Функция проверяет на победу после каждого хода*/
+{
+	int victory[8][3] = {{0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
+	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6}};
+
+	for (int i = 0; i < 8; i++)
+	{
+		if (pField[victory[i][0]] == pField[victory[i][1]] &&
+			pField[victory[i][0]] == pField[victory[i][2]] &&
+			pField[victory[i][0]] != ' ')
+		{
+			pField[victory[i][0]] == 'X' ? cout << "Победили X!" : cout << "Победили O!";
+			wins = true;
+			system("pause");
+			break;
+		}
+		else
+		{
+			cout << "Ничья!";
+			wins = true;
+			system("pause");
+		}
+	}
+}
+
 void game_logic(int type_game, int move, char symbol_player_1, char symbol_player_2)
 /*Функция описывает логику игры, проверка на победу и др.*/
 {
@@ -144,7 +170,7 @@ void game_logic(int type_game, int move, char symbol_player_1, char symbol_playe
 	{
 		pField[move - 1] = symbol_player_1;
 		pFieldVar[move - 1] = '-';
-		/*Нужна проверка на выигрыш*/
+		check_wins();
 		step = false;
 	}
 	else
@@ -152,7 +178,7 @@ void game_logic(int type_game, int move, char symbol_player_1, char symbol_playe
 		system("pause");
 		pField[move] = symbol_player_2;
 		pFieldVar[move] = '-';
-		/*Нужна проверка на выигрыш*/
+		check_wins();
 		step = true;
 	}
 }
