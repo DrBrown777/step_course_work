@@ -6,7 +6,7 @@ using namespace std;
 
 bool game_over, step, wins; /*Флаговые: конец игры, смена хода, победа*/
 
-int turn; /*Проверка на ничью*/
+int turn = 0; /*Проверка на ничью*/
 
 int field_size = 9; /*размер игрового поля*/
 
@@ -133,7 +133,7 @@ char check_wins() /*Функция проверяет на победу посл
 {
 	int victory[8][3] = {{0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
 	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6}};
-
+	turn++;
 	for (int i = 0; i < 8; i++)
 	{
 		if (pField[victory[i][0]] == pField[victory[i][1]] &&
@@ -157,7 +157,7 @@ void wins_stat(char XOD) /*Функция выводит поздравлени�
 	if (XOD != 'D')
 		cout << "\t" << "Поздравляем, победили - " << XOD << " !\n\n";
 	else
-		cout << "\t" << "Спасибо за игру, это ничья!" << " !\n\n";
+		cout << "\t" << "Спасибо за игру, это ничья!" << "\n\n";
 	system("pause");
 	game_over = true;
 }
@@ -167,7 +167,6 @@ void game_logic(int type_game, int move, char symbol_player_1, char symbol_playe
 	char XOD;
 	if (step)
 	{
-		turn++;
 		pField[move - 1] = symbol_player_1;
 		pFieldVar[move - 1] = '-';
 		XOD = check_wins();
@@ -179,7 +178,6 @@ void game_logic(int type_game, int move, char symbol_player_1, char symbol_playe
 	}
 	else
 	{
-		turn++;
 		pField[move] = symbol_player_2;
 		pFieldVar[move] = '-';
 		XOD = check_wins();
