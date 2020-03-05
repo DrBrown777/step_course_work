@@ -4,28 +4,28 @@
 
 using namespace std;
 
-bool game_over, step, wins; /*обьявление глобальных переменных*/
+bool game_over, step, wins; /*Флаговые: конец игры, смена хода, победа*/
+
+int turn; /*Проверка на ничью*/
 
 int field_size = 9; /*размер игрового поля*/
-char* pField = new char[field_size]; /*выделения массива под игровое поле*/
-char* pFieldVar = new char[field_size]; /*выделение массива под поле с вариантами хода*/
+
+char* pField = new char[field_size]; /*массив под игровое поле*/
+char* pFieldVar = new char[field_size]; /*массив под поле с вариантами хода*/
 
 
-void name()
-/*Функция отображает приветствие*/
+void name() /*Отображает приветствие*/
 {
 	cout << "\t" << "*Добро пожаловать в Tic-Tac-Toe!*" << "\n\n";
 }
 
-void setup()
-/*Функция определения флаговых переменных*/
+void setup() /*Функция определения флаговых переменных*/
 {
 	game_over = false;
-	wins = false; /*Дописать вывод позравления о выиграше и стату*/
+	wins = false;
 }
 
-void type_symbol(char* player_1, char* player_2)
-/*Функция рандомно определяет кто будет играть за X а кто за O*/
+void type_symbol(char* player_1, char* player_2) /*Функция рандомно определяет кто будет играть за X а кто за O*/
 {
 	int type_symbol = rand() % 2 + 1;
 
@@ -49,8 +49,7 @@ void type_symbol(char* player_1, char* player_2)
 	}
 }
 
-void clear_field(char* pField, char* pFieldVar, int field_size)
-/*Функция очищает игровое поле и поле с вариантами хода*/
+void clear_field(char* pField, char* pFieldVar, int field_size) /*Функция очищает игровые поля*/
 {
 	for (int i = 0; i < field_size; i++)
 	{
@@ -59,14 +58,10 @@ void clear_field(char* pField, char* pFieldVar, int field_size)
 	}
 }
 
-void draw_field()
-/*Функция выводит игровое поле*/
+void draw_field() /*Функция выводит игровое поле*/
 {
 	system("cls");
-	if (step)
-		cout << "\t\t*Ходит игрок*" << "\n\n";
-	else
-		cout << "\t\t*Ходит противник*" << "\n\n";
+	cout << "\n\n";
 	for (int i = 0; i < field_size; i++)
 	{
 		if (i == 2 || i == 5 || i == 8)
@@ -77,8 +72,7 @@ void draw_field()
 	cout << "\n\n";
 }
 
-int random_player()
-/*Функция возвращает возможный ход, случайно, в стратегии Random*/
+int random_player() /*Функция возвращает возможный ход, случайно, в стратегии Random*/
 {
 	int move = 0, count = 0;
 	
@@ -107,12 +101,10 @@ int random_player()
 	return move;
 }
 
-int input_events()
-/*Функция возвращает ход сделанный пользователем с клавиатуры, 
-и выводит оставшиеся варианты хода*/
+int input_events() /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
 {
 	int move;
-	cout << "Вариант хода:" << "\n\n";
+	cout << "Варианты хода:" << "\n\n";
 	for (int i = 0; i < 9; i++)
 	{
 		if (i == 2 || i == 5 || i == 8)
@@ -137,8 +129,7 @@ int input_events()
 	return move;
 }
 
-void check_wins()
-/*Функция проверяет на победу после каждого хода*/
+char check_wins() /*Функция проверяет на победу после каждого хода*/
 {
 	int victory[8][3] = {{0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
 	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6}};
@@ -149,36 +140,53 @@ void check_wins()
 			pField[victory[i][0]] == pField[victory[i][2]] &&
 			pField[victory[i][0]] != ' ')
 		{
-			pField[victory[i][0]] == 'X' ? cout << "Победили X!" : cout << "Победили O!";
 			wins = true;
-			system("pause");
-			break;
+			return pField[victory[i][0]] == 'X' ? 'X' : 'O';
 		}
-		else
+		else if (turn == 9)
 		{
-			cout << "Ничья!";
 			wins = true;
-			system("pause");
+			return 'D';
 		}
 	}
 }
 
-void game_logic(int type_game, int move, char symbol_player_1, char symbol_player_2)
-/*Функция описывает логику игры, проверка на победу и др.*/
+void wins_stat(char XOD) /*Функция выводит поздравление о выиграше*/
 {
+	draw_field();
+	if (XOD != 'D')
+		cout << "\t" << "Поздравляем, победили - " << XOD << " !\n\n";
+	else
+		cout << "\t" << "Спасибо за игру, это ничья!" << " !\n\n";
+	system("pause");
+	game_over = true;
+}
+
+void game_logic(int type_game, int move, char symbol_player_1, char symbol_player_2) /*Функция логики игры*/
+{
+	char XOD;
 	if (step)
 	{
+		turn++;
 		pField[move - 1] = symbol_player_1;
 		pFieldVar[move - 1] = '-';
-		check_wins();
+		XOD = check_wins();
+		if (wins)
+		{
+			wins_stat(XOD);
+		}
 		step = false;
 	}
 	else
 	{
-		system("pause");
+		turn++;
 		pField[move] = symbol_player_2;
 		pFieldVar[move] = '-';
-		check_wins();
+		XOD = check_wins();
+		if (wins)
+		{
+			wins_stat(XOD);
+		}
 		step = true;
 	}
 }
