@@ -4,13 +4,14 @@
 
 using namespace std;
 
-bool game_over, step, wins; /*Флаговые: конец игры, смена хода, победа*/
+bool game_over, wins, step; /*Флаговые: конец игры, смена хода, победа*/
 
-int turn = 0; /*Проверка на ничью*/
+int turn; /*Проверка на ничью*/
+int type_game;
 int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
+char symbol_player_1, symbol_player_2;
 
 int field_size = 9; /*размер игрового поля*/
-
 char* pField = new char[field_size]; /*массив под игровое поле*/
 char* pFieldVar = new char[field_size]; /*массив под поле с вариантами хода*/
 
@@ -20,13 +21,15 @@ void name() /*Отображает приветствие*/
 	cout << "\t" << "*Добро пожаловать в Tic-Tac-Toe!*" << "\n\n";
 }
 
-void setup() /*Функция определения флаговых переменных*/
+void setup() /*Функция инициализации флаговых переменных*/
 {
 	game_over = false;
 	wins = false;
+	turn = 0;
+	type_game = 0;
 }
 
-void type_symbol(char* player_1, char* player_2) /*Функция рандомно определяет кто будет играть за X а кто за O*/
+void type_symbol() /*Функция рандомно определяет кто будет играть за X а кто за O*/
 {
 	int type_symbol = rand() % 2 + 1;
 
@@ -34,7 +37,7 @@ void type_symbol(char* player_1, char* player_2) /*Функция рандомн
 	{
 		cout << "\tСлучайным образом определено что Вы играете за нолики O." << endl;
 		cout << "\tПротивник играет за крестики Х (крестики ходят первыми)." << endl;
-		*player_1 = 'O'; *player_2 = 'X';
+		symbol_player_1 = 'O'; symbol_player_2 = 'X';
 		step = false;
 		cout << endl;
 		system("pause");
@@ -43,7 +46,7 @@ void type_symbol(char* player_1, char* player_2) /*Функция рандомн
 	{
 		cout << "\tСлучайным образом определено что Вы играете за крестики Х" << endl;
 		cout << "\t(крестики ходят первыми). Противник играет за нолики O." << endl;
-		*player_1 = 'X'; *player_2 = 'O';
+		symbol_player_1 = 'X'; symbol_player_2 = 'O';
 		step = true;
 		cout << endl;
 		system("pause");
@@ -154,8 +157,40 @@ char check_wins() /*Функция проверяет на победу посл
 	}
 }
 
+void start_game()
+{
+	int menu;
+
+	setup();
+
+	cout << "\tВыберите вариант игры:" << endl;
+	cout << "\t1 - Против компьютера \"Random\" стратегия" << endl;
+	cout << "\t2 - Против компьютера \"Smart\" стратегия" << endl;
+	cout << "\t0 - Выход" << endl;
+
+	cin >> menu;
+
+	switch (menu)
+	{
+	case 1:
+		type_game = 1;
+		type_symbol();
+		break;
+	case 2:
+		type_game = 2;
+		type_symbol();
+		break;
+	default:
+		game_over = true;
+		break;
+	}
+
+	clear_field(pField, pFieldVar, field_size);
+}
+
 void wins_stat(char XOD) /*Функция выводит поздравление о выиграше*/
 {
+	char val;
 	draw_field();
 	if (XOD != 'D')
 		cout << "\t" << "Поздравляем, победили - " << XOD << " !\n\n";
@@ -163,12 +198,19 @@ void wins_stat(char XOD) /*Функция выводит поздравлени�
 		cout << "\t" << "Спасибо за игру, это ничья!" << "\n\n";
 
 	cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: "<< d_wins << "\n\n";
-
-	system("pause");
-	game_over = true;
+	cout << "Сыграем еще? ";
+	cin >> val;
+	if (val != 'y')
+	{
+		game_over = true;
+	}
+	else
+	{
+		start_game();
+	}
 }
 
-void game_logic(int type_game, int move, char symbol_player_1, char symbol_player_2) /*Функция логики игры*/
+void game_logic(int move) /*Функция логики игры*/
 {
 	char XOD;
 	if (step)
@@ -200,41 +242,17 @@ int main()
 	setlocale(LC_ALL, "Russian");
 	srand(unsigned(time(0)));
 
-	int menu, type_game, move;
-	char symbol_player_1, symbol_player_2;
+	int move;
 
-	setup(); 
-	
 	name();
-	cout << "\tВыберите вариант игры:" << endl;
-	cout << "\t1 - Против компьютера \"Random\" стратегия" << endl;
-	cout << "\t2 - Против компьютера \"Smart\" стратегия" << endl;
-	cout << "\t0 - Выход" << endl;
-	cin >> menu;
-	switch (menu)
-	{
-	case 1:
-		type_game = 1;
-		type_symbol(&symbol_player_1, &symbol_player_2);
-		break;
-	case 2:
-		type_game = 2;
-		type_symbol(&symbol_player_1, &symbol_player_2);
-		break;
-	default:
-		game_over = true;
-		break;
-	}
 
-	clear_field(pField, pFieldVar, field_size);
+	start_game();
 
-	while (game_over != true)
+	while (game_over != true && type_game == 1)
 	{
 		draw_field();
-		
 		move = input_events();
-		
-		game_logic(type_game, move, symbol_player_1, symbol_player_2);
+		game_logic(move);
 	}
 
 	delete[] pField;
