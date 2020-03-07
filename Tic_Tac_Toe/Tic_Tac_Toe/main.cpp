@@ -221,6 +221,7 @@ void game_logic(int move) /*Функция логики игры*/
 		if (wins)
 		{
 			wins_stat(XOD);
+			return;
 		}
 		step = false;
 	}
@@ -232,6 +233,7 @@ void game_logic(int move) /*Функция логики игры*/
 		if (wins)
 		{
 			wins_stat(XOD);
+			return;
 		}
 		step = true;
 	}
