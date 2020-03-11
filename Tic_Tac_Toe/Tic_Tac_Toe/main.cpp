@@ -7,11 +7,11 @@ using namespace std;
 bool game_over, wins, step; /*Флаговые: конец игры, смена хода, победа*/
 
 int turn; /*Проверка на ничью*/
-int type_game;
+int type_game; /*тип игры, Random или Smart*/
 int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
-char symbol_player_1, symbol_player_2;
+char symbol_player_1, symbol_player_2; /*символьные переменные кто за что играет*/
 
-int field_size = 9; /*размер игрового поля*/
+const int field_size = 9; /*размер игрового поля*/
 char* pField = new char[field_size]; /*массив под игровое поле*/
 char* pFieldVar = new char[field_size]; /*массив под поле с вариантами хода*/
 
@@ -157,12 +157,13 @@ char check_wins() /*Функция проверяет на победу посл
 	}
 }
 
-void start_game()
+void start_game() /*Отображает стартовое меню игры*/
 {
 	int menu;
 
 	setup();
-
+	
+	cout << endl;
 	cout << "\tВыберите вариант игры:" << endl;
 	cout << "\t1 - Против компьютера \"Random\" стратегия" << endl;
 	cout << "\t2 - Против компьютера \"Smart\" стратегия" << endl;
