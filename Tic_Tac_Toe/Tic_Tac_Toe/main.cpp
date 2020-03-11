@@ -137,7 +137,7 @@ char check_wins() /*Функция проверяет на победу посл
 {
 	int victory[8][3] = {{0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
 	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6}};
-	turn++;
+	
 	for (int i = 0; i < 8; i++)
 	{
 		if (pField[victory[i][0]] == pField[victory[i][1]] &&
@@ -148,13 +148,13 @@ char check_wins() /*Функция проверяет на победу посл
 			pField[victory[i][0]] == 'X' ? x_wins++ : o_wins++;
 			return pField[victory[i][0]] == 'X' ? 'X' : 'O';
 		}
-		else if (turn == 9)
+	}
+	if (turn == 9)
 		{
 			wins = true;
 			d_wins++;
 			return 'D';
 		}
-	}
 }
 
 void start_game() /*Отображает стартовое меню игры*/
@@ -255,6 +255,7 @@ int main()
 	{
 		draw_field();
 		move = input_events();
+		turn++;
 		game_logic(move);
 	}
 
