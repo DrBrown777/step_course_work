@@ -12,10 +12,10 @@ int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные перем�
 char symbol_player_1, symbol_player_2; /*символьные переменные кто за что играет*/
 
 const int field_size = 9; /*размер игрового поля*/
-char* pField = new char[field_size]; /*массив под игровое поле*/
-char* pFieldVar = new char[field_size]; /*массив под поле с вариантами хода*/
+char Field[field_size]; /*массив под игровое поле*/
+char FieldVar[field_size]; /*массив под поле с вариантами хода*/
 
-void name(); /*Отображает приветствие*/
+void welcome(); /*Отображает приветствие*/
 void start_game(); /*Отображает стартовое меню игры*/
 void setup(); /*Функция инициализации флаговых переменных*/
 void type_symbol(); /*Функция рандомно определяет кто будет играть за X а кто за O*/
@@ -33,16 +33,14 @@ int main()
 	setlocale(LC_ALL, "Russian");
 	srand(unsigned(time(0)));
 
-	name();
+	welcome();
 
 	start_game();
 
-	delete[] pField;
-	delete[] pFieldVar;
 	return 0;
 }
 
-void name()
+void welcome()
 {
 	cout << "\t" << "*Добро пожаловать в Tic-Tac-Toe!*" << "\n\n";
 }
@@ -50,39 +48,59 @@ void name()
 void start_game()
 {
 	int menu;
+	bool loop = true;
 
-	setup();
-
-	cout << endl;
-	cout << "\tВыберите вариант игры:" << endl;
-	cout << "\t1 - Против компьютера \"Random\" стратегия" << endl;
-	cout << "\t2 - Против компьютера \"Smart\" стратегия" << endl;
-	cout << "\t3 - Обучить \"Smart\" игрока" << endl;
-	cout << "\t0 - Выход" << endl;
-
-	cin >> menu;
-
-	switch (menu)
+	while (loop == true)
 	{
-	case 1:
-		type_game = 1;
-		type_symbol();
-		clear_field();
-		play_game();
-		break;
-	case 2:
-		type_game = 2;
-		type_symbol();
-		clear_field();
-		play_game();
-		break;
-	case 3:
-		type_game = 3;
-		//type_symbol();
-		break;
-	default:
-		game_over = true;
-		break;
+		cout << endl;
+		cout << "\tВыберите вариант игры:" << endl;
+		cout << "\t1 - Против компьютера \"Random\" стратегия" << endl;
+		cout << "\t2 - Против компьютера \"Smart\" стратегия" << endl;
+		cout << "\t3 - Обучить \"Smart\" игрока" << endl;
+		cout << "\t0 - Выход" << endl;
+
+		cin >> menu;
+
+		switch (menu)
+		{
+		case 1:
+			type_game = 1;
+			setup();
+			type_symbol();
+			clear_field();
+			play_game();
+			break;
+		case 2:
+		{
+			while ((x_wins + o_wins + d_wins) != 100000)
+			{
+				type_game = 2;
+				setup();
+				int type_symbol = rand() % 2 + 1;
+				if (type_symbol == 2)
+				{
+					symbol_player_1 = 'O'; symbol_player_2 = 'X';
+					step = false;
+				}
+				else
+				{
+					symbol_player_1 = 'X'; symbol_player_2 = 'O';
+					step = true;
+				}
+				clear_field();
+				play_game();
+			}
+			cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
+			break;
+		}
+		case 3:
+			type_game = 3;
+			break;
+		default:
+			break;
+		}
+		cout << "Играем еще? (1 / 0 - Да / Нет) ";
+		cin >> loop;
 	}
 }
 
@@ -91,7 +109,6 @@ void setup()
 	game_over = false;
 	wins = false;
 	turn = 0;
-	//type_game = 0;
 }
 
 void type_symbol()
@@ -122,8 +139,8 @@ void clear_field()
 {
 	for (int i = 0; i < field_size; i++)
 	{
-		pField[i] = ' ';
-		pFieldVar[i] = (i + 1) + '0';
+		Field[i] = ' ';
+		FieldVar[i] = (i + 1) + '0';
 	}
 }
 
@@ -134,9 +151,9 @@ void draw_field()
 	for (int i = 0; i < field_size; i++)
 	{
 		if (i == 2 || i == 5 || i == 8)
-			cout << "\t" << setw(2) << "-" << pField[i] << "-" << endl;
+			cout << "\t" << setw(2) << "-" << Field[i] << "-" << endl;
 		else
-			cout << "\t" << setw(2) << "-" << pField[i] << "-  |";
+			cout << "\t" << setw(2) << "-" << Field[i] << "-  |";
 	}
 	cout << "\n\n";
 }
@@ -147,14 +164,14 @@ int random_player()
 
 	for (int i = 0; i < field_size; i++)
 	{
-		if (pField[i] == ' ') count++;
+		if (Field[i] == ' ') count++;
 	}
 
 	int* pTmp = new int[count];
 
 	for (int i = 0, j = 0; i < field_size; i++)
 	{
-		if (pField[i] == ' ')
+		if (Field[i] == ' ')
 		{
 			pTmp[j] = i;
 			j++;
@@ -171,32 +188,31 @@ int random_player()
 int input_events()
 {
 	int move;
-	cout << "Варианты хода:" << "\n\n";
-	for (int i = 0; i < 9; i++)
-	{
-		if (i == 2 || i == 5 || i == 8)
-			cout << "\t" << setw(2) << "-" << pFieldVar[i] << "-" << endl;
-		else
-			cout << "\t" << setw(2) << "-" << pFieldVar[i] << "-  |";
-	}
-	cout << endl;
 	if (step && type_game == 1)
 	{
+		cout << "Варианты хода:" << "\n\n";
+		for (int i = 0; i < 9; i++)
+		{
+			if (i == 2 || i == 5 || i == 8)
+				cout << "\t" << setw(2) << "-" << FieldVar[i] << "-" << endl;
+			else
+				cout << "\t" << setw(2) << "-" << FieldVar[i] << "-  |";
+		}
+		cout << endl;
 		do
 		{
 			cout << "Сделайте ход (1-9) -> ";
 			cin >> move;
-		} while (move < 1 || move > 9 || pField[move - 1] == 'X' || pField[move - 1] == 'O');
+		} while (move < 1 || move > 9 || Field[move - 1] == 'X' || Field[move - 1] == 'O');
 	}
 	else if (step && type_game == 2)
 	{
-		move = random_player();
+		return random_player();
 	}
 	else
 	{
-		move = random_player();
+		return random_player();
 	}
-
 	return move;
 }
 
@@ -207,13 +223,13 @@ char check_wins()
 
 	for (int i = 0; i < 8; i++)
 	{
-		if (pField[victory[i][0]] == pField[victory[i][1]] &&
-			pField[victory[i][0]] == pField[victory[i][2]] &&
-			pField[victory[i][0]] != ' ')
+		if (Field[victory[i][0]] == Field[victory[i][1]] &&
+			Field[victory[i][0]] == Field[victory[i][2]] &&
+			Field[victory[i][0]] != ' ')
 		{
 			wins = true;
-			pField[victory[i][0]] == 'X' ? x_wins++ : o_wins++;
-			return pField[victory[i][0]] == 'X' ? 'X' : 'O';
+			Field[victory[i][0]] == 'X' ? x_wins++ : o_wins++;
+			return Field[victory[i][0]] == 'X' ? 'X' : 'O';
 		}
 	}
 	if (turn == 9)
@@ -226,25 +242,17 @@ char check_wins()
 
 void wins_stat(char XOD)
 {
-	char val;
-	draw_field();
-	if (XOD != 'D')
-		cout << "\t" << "Поздравляем, победили - " << XOD << " !\n\n";
-	else
-		cout << "\t" << "Спасибо за игру, это ничья!" << "\n\n";
+	if (type_game == 1)
+	{
+		draw_field();
+		if (XOD != 'D')
+			cout << "\t" << "Поздравляем, победили - " << XOD << " !\n\n";
+		else
+			cout << "\t" << "Спасибо за игру, это ничья!" << "\n\n";
+		cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
+	}
 
-	cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
-	
-	cout << "Сыграем еще? ";
-	cin >> val;
-	if (val != 'y')
-	{
-		game_over = true;
-	}
-	else
-	{
-		start_game();
-	}
+	game_over = true;
 }
 
 void game_logic(int move)
@@ -252,8 +260,8 @@ void game_logic(int move)
 	char XOD;
 	if (step && type_game == 1)
 	{
-		pField[move - 1] = symbol_player_1;
-		pFieldVar[move - 1] = '-';
+		Field[move - 1] = symbol_player_1;
+		FieldVar[move - 1] = '-';
 		XOD = check_wins();
 		if (wins)
 		{
@@ -264,8 +272,8 @@ void game_logic(int move)
 	}
 	else if (step && type_game == 2)
 	{
-		pField[move] = symbol_player_1;
-		pFieldVar[move] = '-';
+		Field[move] = symbol_player_1;
+		//FieldVar[move] = '-';
 		XOD = check_wins();
 		if (wins)
 		{
@@ -276,8 +284,8 @@ void game_logic(int move)
 	}
 	else
 	{
-		pField[move] = symbol_player_2;
-		pFieldVar[move] = '-';
+		Field[move] = symbol_player_2;
+		//FieldVar[move] = '-';
 		XOD = check_wins();
 		if (wins)
 		{
@@ -294,7 +302,8 @@ void play_game()
 
 	while (game_over != true)
 	{
-		draw_field();
+		if (type_game == 1)
+			draw_field();
 		move = input_events();
 		turn++;
 		game_logic(move);
