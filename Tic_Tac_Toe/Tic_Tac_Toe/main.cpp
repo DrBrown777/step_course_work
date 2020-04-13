@@ -1,48 +1,53 @@
 ﻿#include <iostream>
 #include <iomanip>
 #include <ctime>
+#include <Windows.h>
 
 using namespace std;
-
-bool game_over, wins, step; /*Флаговые: конец игры, смена хода, победа*/
-
-int turn; /*Проверка на ничью*/
-int type_game; /*тип игры, Random или Smart*/
-int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
-char symbol_player_1, symbol_player_2; /*символьные переменные кто за что играет*/
 
 const int field_size = 9; /*размер игрового поля*/
 char Field[field_size]; /*массив под игровое поле*/
 char FieldVar[field_size]; /*массив под поле с вариантами хода*/
 
+const int init_weight = 100; /*Начальный вес матрицы весов*/
+const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
+const double step_coef = 0.65; /*Коэфициент обучения*/
+const int step_learn = 20; /*Шаг обучения*/
+const int number_of_games = 50000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
+
+bool game_over, wins; /*Флаговые: конец игры, победа*/
+int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
+
 void welcome(); /*Отображает приветствие*/
 void start_game(); /*Отображает стартовое меню игры*/
-void setup(); /*Функция инициализации флаговых переменных*/
-void type_symbol(); /*Функция рандомно определяет кто будет играть за X а кто за O*/
+void setup(int*); /*Функция инициализации флаговых переменных*/
+void type_symbol(bool*, char*, char*); /*Функция рандомно определяет кто будет играть за X а кто за O*/
 void clear_field(); /*Функция очищает игровые поля*/
 void draw_field(); /*Функция выводит игровое поле*/
 int random_player(); /*Функция возвращает возможный ход, случайно, в стратегии Random*/
-int input_events(); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
-char check_wins(); /*Функция проверяет на победу после каждого хода*/
-void wins_stat(char); /*Функция выводит поздравление о выиграше*/
-void game_logic(int); /*Функция логики игры*/
-void play_game(); /*Функция loop цикла игры*/
+int input_events(bool*, int*); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
+char check_wins(int*); /*Функция проверяет на победу после каждого хода*/
+void wins_stat(char, int*); /*Функция выводит поздравление о выиграше*/
+void game_logic(int, int*, bool*, int*, char*, char*); /*Функция логики игры*/
+void play_game(int*, bool*, int*, char*, char*); /*Функция loop цикла игры*/
 
 struct DataBase /*База знаний smart игрока*/
 {
 	char MyField[9];
-	int MyWeight[9] = { 100, 100, 100, 100, 100, 100, 100, 100, 100 };
+	int MyWeight[9];
+	DataBase() {
+		fill(MyWeight, MyWeight + field_size, init_weight);
+	}
 };
 
 int main()
 {
-	setlocale(LC_ALL, "Russian");
+	SetConsoleCP(1251);
+	SetConsoleOutputCP(1251);
 	srand(unsigned(time(0)));
 
 	welcome();
-
 	start_game();
-
 	return 0;
 }
 
@@ -55,6 +60,10 @@ void start_game()
 {
 	int menu;
 	bool loop = true;
+	int draw; /*Проверка на ничью*/
+	bool turn; /*Очередь хода*/
+	int type_game; /*тип игры, Random или Smart*/
+	char symbol_player_1, symbol_player_2; /*символьные переменные кто за что играет*/
 
 	while (loop == true)
 	{
@@ -71,30 +80,30 @@ void start_game()
 		{
 		case 1:
 			type_game = 1;
-			setup();
-			type_symbol();
+			setup(&draw);
+			type_symbol(&turn, &symbol_player_1, &symbol_player_2);
 			clear_field();
-			play_game();
+			play_game(&draw, &turn, &type_game, &symbol_player_1, &symbol_player_2);
 			break;
 		case 2:
 		{
-			while ((x_wins + o_wins + d_wins) != 100000)
+			type_game = 2;
+			for (int i=0; i < number_of_games; i++)
 			{
-				type_game = 2;
-				setup();
+				setup(&draw);
 				int type_symbol = rand() % 2 + 1;
 				if (type_symbol == 2)
 				{
 					symbol_player_1 = 'O'; symbol_player_2 = 'X';
-					step = false;
+					turn = false;
 				}
 				else
 				{
 					symbol_player_1 = 'X'; symbol_player_2 = 'O';
-					step = true;
+					turn = true;
 				}
 				clear_field();
-				play_game();
+				play_game(&draw, &turn, &type_game, &symbol_player_1, &symbol_player_2);
 			}
 			cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
 			break;
@@ -110,14 +119,14 @@ void start_game()
 	}
 }
 
-void setup()
-{
+void setup(int* draw)
+{	
 	game_over = false;
 	wins = false;
-	turn = 0;
+	*draw = 0;
 }
 
-void type_symbol()
+void type_symbol(bool* turn, char* symbol_player_1, char* symbol_player_2)
 {
 	int type_symbol = rand() % 2 + 1;
 
@@ -125,8 +134,8 @@ void type_symbol()
 	{
 		cout << "\tСлучайным образом определено что Вы играете за нолики O." << endl;
 		cout << "\tПротивник играет за крестики Х (крестики ходят первыми)." << endl;
-		symbol_player_1 = 'O'; symbol_player_2 = 'X';
-		step = false;
+		*symbol_player_1 = 'O'; *symbol_player_2 = 'X';
+		*turn = false;
 		cout << endl;
 		system("pause");
 	}
@@ -134,8 +143,8 @@ void type_symbol()
 	{
 		cout << "\tСлучайным образом определено что Вы играете за крестики Х" << endl;
 		cout << "\t(крестики ходят первыми). Противник играет за нолики O." << endl;
-		symbol_player_1 = 'X'; symbol_player_2 = 'O';
-		step = true;
+		*symbol_player_1 = 'X'; *symbol_player_2 = 'O';
+		*turn = true;
 		cout << endl;
 		system("pause");
 	}
@@ -191,10 +200,10 @@ int random_player()
 	return move;
 }
 
-int input_events()
+int input_events(bool* turn, int* type_game)
 {
 	int move;
-	if (step && type_game == 1)
+	if (*turn && *type_game == 1)
 	{
 		cout << "Варианты хода:" << "\n\n";
 		for (int i = 0; i < field_size; i++)
@@ -211,7 +220,7 @@ int input_events()
 			cin >> move;
 		} while (move < 1 || move > 9 || Field[move - 1] == 'X' || Field[move - 1] == 'O');
 	}
-	else if (step && type_game == 2)
+	else if (*turn && *type_game == 2)
 	{
 		return random_player();
 	}
@@ -222,12 +231,12 @@ int input_events()
 	return move;
 }
 
-char check_wins()
+char check_wins(int* draw)
 {
 	int victory[8][3] = { {0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
 	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
 
-	for (int i = 0; i < field_size-1; i++)
+	for (int i = 0; i < field_size - 1; i++)
 	{
 		if (Field[victory[i][0]] == Field[victory[i][1]] &&
 			Field[victory[i][0]] == Field[victory[i][2]] &&
@@ -238,7 +247,7 @@ char check_wins()
 			return Field[victory[i][0]] == 'X' ? 'X' : 'O';
 		}
 	}
-	if (turn == 9)
+	if (*draw == 9)
 	{
 		wins = true;
 		d_wins++;
@@ -247,9 +256,9 @@ char check_wins()
 	return 'U';
 }
 
-void wins_stat(char XOD)
+void wins_stat(char XOD, int* type_game)
 {
-	if (type_game == 1)
+	if (*type_game == 1)
 	{
 		draw_field();
 		if (XOD != 'D')
@@ -262,57 +271,56 @@ void wins_stat(char XOD)
 	game_over = true;
 }
 
-void game_logic(int move)
+void game_logic(int move, int* draw, bool* turn, int* type_game, char* symbol_player_1, char* symbol_player_2)
 {
 	char XOD;
-	if (step && type_game == 1)
+	if (*turn && *type_game == 1)
 	{
-		Field[move - 1] = symbol_player_1;
+		Field[move - 1] = *symbol_player_1;
 		FieldVar[move - 1] = '-';
-		XOD = check_wins();
+		XOD = check_wins(draw);
 		if (wins)
 		{
-			wins_stat(XOD);
+			wins_stat(XOD, type_game);
 			return;
 		}
-		step = false;
+		*turn = false;
 	}
-	else if (step && type_game == 2)
+	else if (*turn && *type_game == 2)
 	{
-		Field[move] = symbol_player_1;
-		//FieldVar[move] = '-';
-		XOD = check_wins();
+		Field[move] = *symbol_player_1;
+		XOD = check_wins(draw);
 		if (wins)
 		{
-			wins_stat(XOD);
+			wins_stat(XOD, type_game);
 			return;
 		}
-		step = false;
+		*turn = false;
 	}
 	else
 	{
-		Field[move] = symbol_player_2;
-		//FieldVar[move] = '-';
-		XOD = check_wins();
+		Field[move] = *symbol_player_2;
+		FieldVar[move] = '-';
+		XOD = check_wins(draw);
 		if (wins)
 		{
-			wins_stat(XOD);
+			wins_stat(XOD, type_game);
 			return;
 		}
-		step = true;
+		*turn = true;
 	}
 }
 
-void play_game()
+void play_game(int* draw, bool* turn, int* type_game, char* symbol_player_1, char* symbol_player_2)
 {
 	int move;
 
 	while (game_over != true)
 	{
-		if (type_game == 1)
+		if (*type_game == 1)
 			draw_field();
-		move = input_events();
-		turn++;
-		game_logic(move);
+		move = input_events(turn, type_game);
+		(*draw)++;
+		game_logic(move, draw, turn, type_game, symbol_player_1, symbol_player_2);
 	}
 }
