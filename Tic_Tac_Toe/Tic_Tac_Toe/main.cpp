@@ -1,6 +1,8 @@
 ﻿#include <iostream>
 #include <iomanip>
 #include <ctime>
+#include <cstring>
+#include <algorithm>
 #include <Windows.h>
 
 using namespace std;
@@ -19,7 +21,7 @@ bool game_over, wins; /*Флаговые: конец игры, победа*/
 int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
 
 void welcome(); /*Отображает приветствие*/
-void start_game(); /*Отображает стартовое меню игры*/
+void start_game(); /*Отображает стартовое меню игры и определяет вызов функций в зависимоти от типа игры*/
 void setup(int*); /*Функция инициализации флаговых переменных*/
 void type_symbol(bool*, char*, char*, int*); /*Функция рандомно определяет кто будет играть за X а кто за O*/
 void clear_field(); /*Функция очищает игровые поля*/
@@ -29,7 +31,10 @@ int input_events(bool*, int*); /*Функция возвращает ход сд
 char check_wins(int*); /*Функция проверяет на победу после каждого хода*/
 void wins_stat(char, int*); /*Функция выводит поздравление о выиграше*/
 void game_logic(int, int*, bool*, int*, char*, char*); /*Функция логики игры*/
-void play_game(int*, bool*, int*, char*, char*); /*Функция loop цикла игры*/
+void play_game(int*, bool*, int*, char*, char*); /*Функция loop цикла 1 партии*/
+DataBase* push_database(DataBase*, char*, int&);
+int get_situation(DataBase*, char*, int);
+int get_smart_random(int*, int);
 
 struct DataBase /*База знаний smart игрока*/
 {
@@ -320,4 +325,91 @@ void play_game(int* draw, bool* turn, int* type_game, char* symbol_player_1, cha
 		(*draw)++;
 		game_logic(move, draw, turn, type_game, symbol_player_1, symbol_player_2);
 	}
+}
+
+DataBase* push_database(DataBase* Collect, char* Field, int& size)
+{
+	DataBase* Temp = new DataBase[size + 1];
+
+	for (int i = 0; i < size; i++)
+	{
+		Temp[i] = Collect[i];
+	}
+
+	strcpy(Temp[size].MyField, Field);
+
+	for (int i = 0; i < 9; i++)
+	{
+		if (strncmp(&Temp[size].MyField[i], " ", 1) != 0)
+		{
+			Temp[size].MyWeight[i] = 0;
+		}
+	}
+
+	delete[] Collect;
+
+	size++;
+
+	return Temp;
+}
+
+int get_situation(DataBase* Collect, char* Field, int size)
+{
+
+	for (int i = 0; i < size; i++)
+	{
+		if (strcmp(Collect[i].MyField, Field) == 0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+int get_smart_random(int* mas, int PreCoef)
+{
+
+	srand(unsigned(time(0)));
+
+	int summ = 0, count = 0, move = 0;
+	int mas_temp[9];
+
+	//int mas[9] = {0, 50, 80, 200, 0, 70, 1000, 100, 100}; //матрица весов передается аргументом
+
+	for (int i = 0; i < 9; i++)
+	{
+		summ += mas[i];
+		mas_temp[i] = mas[i];
+	}
+
+	for (int i = 0; i < 9; i++)
+	{
+		mas_temp[i] = (mas_temp[i] / (double)summ) * PreCoef; //нормализация весов
+	}
+
+	for (int i = 0; i < 9; i++)
+	{
+		count += mas_temp[i];
+	}
+
+	int* new_mas = new int[count];
+
+	for (int i = 0, j = 0; i < 9; i++)
+	{
+		int tmp = mas_temp[i];
+		while (tmp != 0)
+		{
+			new_mas[j] = i;
+			j++;
+			tmp--;
+		}
+	}
+
+	random_shuffle(new_mas, new_mas + count);
+
+	move = new_mas[rand() % count];
+
+	delete[] new_mas;
+
+	return move; //return хода на основании матрицы весов 
 }
