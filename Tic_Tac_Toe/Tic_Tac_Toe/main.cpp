@@ -21,7 +21,7 @@ int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные перем�
 void welcome(); /*Отображает приветствие*/
 void start_game(); /*Отображает стартовое меню игры*/
 void setup(int*); /*Функция инициализации флаговых переменных*/
-void type_symbol(bool*, char*, char*); /*Функция рандомно определяет кто будет играть за X а кто за O*/
+void type_symbol(bool*, char*, char*, int*); /*Функция рандомно определяет кто будет играть за X а кто за O*/
 void clear_field(); /*Функция очищает игровые поля*/
 void draw_field(); /*Функция выводит игровое поле*/
 int random_player(); /*Функция возвращает возможный ход, случайно, в стратегии Random*/
@@ -81,7 +81,7 @@ void start_game()
 		case 1:
 			type_game = 1;
 			setup(&draw);
-			type_symbol(&turn, &symbol_player_1, &symbol_player_2);
+			type_symbol(&turn, &symbol_player_1, &symbol_player_2, &type_game);
 			clear_field();
 			play_game(&draw, &turn, &type_game, &symbol_player_1, &symbol_player_2);
 			break;
@@ -91,17 +91,7 @@ void start_game()
 			for (int i=0; i < number_of_games; i++)
 			{
 				setup(&draw);
-				int type_symbol = rand() % 2 + 1;
-				if (type_symbol == 2)
-				{
-					symbol_player_1 = 'O'; symbol_player_2 = 'X';
-					turn = false;
-				}
-				else
-				{
-					symbol_player_1 = 'X'; symbol_player_2 = 'O';
-					turn = true;
-				}
+				type_symbol(&turn, &symbol_player_1, &symbol_player_2, &type_game);
 				clear_field();
 				play_game(&draw, &turn, &type_game, &symbol_player_1, &symbol_player_2);
 			}
@@ -126,25 +116,32 @@ void setup(int* draw)
 	*draw = 0;
 }
 
-void type_symbol(bool* turn, char* symbol_player_1, char* symbol_player_2)
+void type_symbol(bool* turn, char* symbol_player_1, char* symbol_player_2, int* type_game)
 {
 	int type_symbol = rand() % 2 + 1;
 
 	if (type_symbol == 2)
 	{
-		cout << "\tСлучайным образом определено что Вы играете за нолики O." << endl;
-		cout << "\tПротивник играет за крестики Х (крестики ходят первыми)." << endl;
 		*symbol_player_1 = 'O'; *symbol_player_2 = 'X';
 		*turn = false;
-		cout << endl;
-		system("pause");
 	}
 	else
 	{
-		cout << "\tСлучайным образом определено что Вы играете за крестики Х" << endl;
-		cout << "\t(крестики ходят первыми). Противник играет за нолики O." << endl;
 		*symbol_player_1 = 'X'; *symbol_player_2 = 'O';
 		*turn = true;
+	}
+
+	if (type_symbol == 2 && *type_game == 1)
+	{
+		cout << "\tСлучайным образом определено что Вы играете за нолики O." << endl;
+		cout << "\tПротивник играет за крестики Х (крестики ходят первыми)." << endl;
+		cout << endl;
+		system("pause");
+	}
+	else if (type_symbol == 1 && *type_game == 1)
+	{
+		cout << "\tСлучайным образом определено что Вы играете за крестики Х" << endl;
+		cout << "\t(крестики ходят первыми). Противник играет за нолики O." << endl;
 		cout << endl;
 		system("pause");
 	}
