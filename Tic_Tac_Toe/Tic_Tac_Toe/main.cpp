@@ -28,6 +28,12 @@ void wins_stat(char); /*Функция выводит поздравление �
 void game_logic(int); /*Функция логики игры*/
 void play_game(); /*Функция loop цикла игры*/
 
+struct DataBase /*База знаний smart игрока*/
+{
+	char MyField[9];
+	int MyWeight[9] = { 100, 100, 100, 100, 100, 100, 100, 100, 100 };
+};
+
 int main()
 {
 	setlocale(LC_ALL, "Russian");
@@ -191,7 +197,7 @@ int input_events()
 	if (step && type_game == 1)
 	{
 		cout << "Варианты хода:" << "\n\n";
-		for (int i = 0; i < 9; i++)
+		for (int i = 0; i < field_size; i++)
 		{
 			if (i == 2 || i == 5 || i == 8)
 				cout << "\t" << setw(2) << "-" << FieldVar[i] << "-" << endl;
@@ -221,7 +227,7 @@ char check_wins()
 	int victory[8][3] = { {0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
 	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
 
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < field_size-1; i++)
 	{
 		if (Field[victory[i][0]] == Field[victory[i][1]] &&
 			Field[victory[i][0]] == Field[victory[i][2]] &&
@@ -238,6 +244,7 @@ char check_wins()
 		d_wins++;
 		return 'D';
 	}
+	return 'U';
 }
 
 void wins_stat(char XOD)
