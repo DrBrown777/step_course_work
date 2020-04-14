@@ -13,8 +13,8 @@ char FieldVar[field_size]; /*массив под поле с вариантам�
 const int init_weight = 100; /*Начальный вес матрицы весов*/
 const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
 const double step_coef = 0.65; /*Коэфициент обучения*/
-const int step_learn = 20; /*Шаг обучения*/
-const int number_of_games = 10; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
+const int step_learn = 10; /*Шаг обучения*/
+const int number_of_games = 1000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
 
 bool game_over, wins; /*Флаговые: конец игры, победа*/
 int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
@@ -29,7 +29,7 @@ struct DataBase /*База знаний smart игрока*/
 };
 
 void welcome(); /*Отображает приветствие*/
-void start_game(DataBase*, int*); /*Отображает стартовое меню игры и определяет последовательность вызова функций в зависимоти от типа игры*/
+void start_game(); /*Отображает стартовое меню игры и определяет последовательность вызова функций в зависимоти от типа игры*/
 void setup(int*); /*Функция инициализации флаговых переменных*/
 void type_symbol(bool*, char*, char*, int*); /*Функция рандомно определяет кто будет играть за X а кто за O*/
 void clear_field(); /*Функция очищает игровые поля*/
@@ -51,11 +51,8 @@ int main()
 	setlocale(0, "");
 	srand(unsigned(time(0)));
 
-	int size_database = 0;
-	DataBase* Collections = new DataBase[size_database];
-
 	welcome();
-	start_game(Collections, &size_database);
+	start_game();
 	return 0;
 }
 
@@ -64,11 +61,14 @@ void welcome()
 	cout << "\t" << "*Добро пожаловать в Tic-Tac-Toe!*" << "\n\n";
 }
 
-void start_game(DataBase* Collections, int* size_database)
+void start_game()
 {
 	int menu;
 	bool loop = true;
 	int type_game; /*тип игры, Random или Smart*/
+	
+	int size_database = 0;
+	DataBase* Collections = new DataBase[size_database];
 
 	while (loop == true)
 	{
@@ -85,21 +85,32 @@ void start_game(DataBase* Collections, int* size_database)
 		{
 		case 1:
 			type_game = 1;
-			play_game(&type_game, Collections, size_database);
+			play_game(&type_game, Collections, &size_database);
 			break;
 		case 2:
 		{
 			type_game = 2;
-			play_game(&type_game, Collections, size_database);
+			play_game(&type_game, Collections, &size_database);
 			break;
 		}
 		case 3:
 			type_game = 3;
 			for (int i = 0; i < number_of_games; i++)
 			{
-				play_game(&type_game, Collections, size_database);
+				play_game(&type_game, Collections, &size_database);
 			}
-			cout << "Игрок Smart теперь очень умный!" << "\n\n";
+			//cout << "Игрок Smart теперь очень умный!" << "\n\n";
+			cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
+			for (size_t i = 0; i < size_database; i++)
+			{
+				cout << Collections[i].MyField << endl;
+				
+				for (size_t j = 0; j < size_database; j++)
+				{
+					cout << Collections[i].MyField[j] << endl;
+				}
+				cout << endl;
+			}
 			break;
 		default:
 			break;
@@ -314,14 +325,14 @@ char check_wins(int* draw, int* type_game)
 			Field[victory[i][0]] != ' ')
 		{
 			wins = true;
-			if (*type_game != 3) Field[victory[i][0]] == 'X' ? x_wins++ : o_wins++;
+			/*if (*type_game != 3)*/ Field[victory[i][0]] == 'X' ? x_wins++ : o_wins++;
 			return Field[victory[i][0]] == 'X' ? 'X' : 'O';
 		}
 	}
 	if (*draw == 9)
 	{
 		wins = true;
-		if (*type_game != 3) d_wins++;
+		/*if (*type_game != 3)*/ d_wins++;
 		return 'D';
 	}
 	return 'U';
@@ -351,7 +362,7 @@ DataBase* push_database(DataBase* Collect, int* size)
 		Temp[i] = Collect[i];
 	}
 
-	strcpy_s(Temp[*size].MyField, Field);
+	strcpy(Temp[*size].MyField, Field);
 
 	for (int i = 0; i < 9; i++)
 	{
@@ -361,7 +372,7 @@ DataBase* push_database(DataBase* Collect, int* size)
 		}
 	}
 
-	delete[] Collect;
+	//delete[] Collect;
 
 	(*size)++;
 
@@ -383,9 +394,6 @@ int get_situation(DataBase* Collect, int* size)
 
 int get_smart_random(int* mas)
 {
-
-	srand(unsigned(time(0)));
-
 	int summ = 0, count = 0, move = 0;
 	int mas_temp[9];
 
