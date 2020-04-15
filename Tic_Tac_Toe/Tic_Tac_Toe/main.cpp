@@ -14,11 +14,12 @@ const int init_weight = 100; /*Начальный вес матрицы весо
 const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
 const double step_coef = 0.65; /*Коэфициент обучения*/
 const int step_learn = 10; /*Шаг обучения*/
-const int number_of_games = 100; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
+const int number_of_games = 1; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
 
 bool game_over, wins; /*Флаговые: конец игры, победа*/
 int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
 
+int size_database = 0; /*Размер базы данных, изначально равен 0*/
 struct DataBase /*База знаний smart игрока*/
 {
 	char MyField[9];
@@ -26,7 +27,7 @@ struct DataBase /*База знаний smart игрока*/
 	DataBase() {
 		fill(MyWeight, MyWeight + field_size, init_weight);
 	}
-};
+}*Collections = new DataBase[size_database];
 
 void welcome(); /*Отображает приветствие*/
 void start_game(); /*Отображает стартовое меню игры и определяет последовательность вызова функций в зависимоти от типа игры*/
@@ -45,9 +46,6 @@ DataBase* push_database();
 int get_situation();
 int get_smart_random(int);
 void smart_learn(); /*Рекурсивная функция обучения*/
-
-int size_database = 0;
-DataBase* Collections = new DataBase[size_database];
 
 int main()
 {
@@ -101,6 +99,7 @@ void start_game()
 			}
 			//cout << "Игрок Smart теперь очень умный!" << "\n\n";
 			cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
+			
 			for (size_t i = 0; i < size_database; i++)
 			{
 				cout << Collections[i].MyField << endl;
@@ -111,6 +110,7 @@ void start_game()
 				}
 				cout << endl;
 			}
+			
 			break;
 		default:
 			break;
@@ -162,7 +162,7 @@ int input_events(bool* turn, int* type_game)
 	}
 	else if ((*turn && *type_game == 3) || *type_game == 2)
 	{
-		if (get_situation() != 0)
+		if (get_situation() == -1)
 			Collections = push_database();
 		
 		int index = get_situation();
@@ -402,14 +402,12 @@ int get_smart_random(int index)
 		summ += Collections[index].MyWeight[i];
 		mas_temp[i] = Collections[index].MyWeight[i];
 	}
-
 	if (summ == 0) return random_player();
 
 	for (int i = 0; i < 9; i++)
 	{
 		mas_temp[i] = (mas_temp[i] / (double)summ) * precision_coef;
 	}
-
 	for (int i = 0; i < 9; i++)
 	{
 		count += mas_temp[i];
