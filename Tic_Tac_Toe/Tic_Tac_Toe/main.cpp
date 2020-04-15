@@ -11,7 +11,7 @@ const int init_weight = 100; /*Начальный вес матрицы весо
 const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
 const double step_coef = 0.65; /*Коэфициент обучения*/
 const int step_learn = 20; /*Шаг обучения*/
-const int number_of_games = 1000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
+const int number_of_games = 10; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
 
 char Field[field_size]; /*массив под игровое поле*/
 char FieldVar[field_size]; /*массив под поле с вариантами хода*/
@@ -25,6 +25,12 @@ struct DataBase /*База знаний smart игрока*/
 	}
 }*Collections = new DataBase[size_database];
 
+struct Stack /*История выполненых ходов Smart игрока в текущеей партии для функции Learn*/
+{
+	int current_move;
+	int index_weight;
+};
+
 void welcome(); /*Отображает приветствие*/
 void start_game(); /*Отображает стартовое меню игры и определяет последовательность вызова функций в зависимоти от типа игры*/
 void setup(int*, bool*, bool*); /*Функция инициализации флаговых переменных*/
@@ -32,7 +38,7 @@ void type_symbol(bool*, char*, char*, int*); /*Функция рандомно �
 void clear_field(); /*Функция очищает игровые поля*/
 void display_field(); /*Функция выводит игровое поле*/
 int random_player(); /*Функция возвращает возможный ход, случайно, в стратегии Random*/
-int input_events(bool*, int*); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
+int input_events(bool*, int*, Stack**, int*); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
 char check_wins(int*, int*, int*, int*, int*, bool*); /*Функция проверяет на победу после каждого хода*/
 void wins_stat(char, int*, int*, int*, int*, bool*); /*Функция выводит поздравление о выиграше*/
 void game_logic(int, int*, bool*, int*, char*, char*, int*, int*, int*, bool*, bool*); /*Функция логики игры*/
@@ -42,6 +48,7 @@ DataBase* push_database(); /*Добавляет в базу данных неи�
 int get_situation(); /*Ищет в базе сложившнюся ситуацию на поле*/
 int get_smart_random(int); /*Генерирует ход Smart игрока на основании матрицы весов*/
 void smart_learn(); /*Рекурсивная функция обучения, уменьшает вес хода в случае проигрыша, и увеличивет наооборот, ничья нейтрально*/
+Stack* push_stack(int, int, Stack*, int*); /*Добавляет в Stack текущий ход игрока Smart*/
 
 int main()
 {
@@ -50,12 +57,9 @@ int main()
 
 	welcome();
 	start_game();
-	return 0;
-}
 
-void welcome()
-{
-	cout << "\t" << "*Добро пожаловать в Tic-Tac-Toe!*" << "\n\n";
+	delete[] Collections;
+	return 0;
 }
 
 void start_game()
@@ -86,6 +90,18 @@ void start_game()
 		{
 			type_game = 2;
 			play_game(&type_game, &x_wins, &o_wins, &d_wins);
+
+			for (size_t i = 0; i < size_database; i++)
+			{
+				cout << Collections[i].MyField << endl;
+
+				for (size_t j = 0; j < 9; j++)
+				{
+					cout << Collections[i].MyWeight[j] << " ";
+				}
+				cout << endl;
+			}
+
 			break;
 		}
 		case 3:
@@ -96,7 +112,7 @@ void start_game()
 			}
 			//cout << "Игрок Smart теперь очень умный!" << "\n\n";
 			cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
-			/*
+			
 			for (size_t i = 0; i < size_database; i++)
 			{
 				cout << Collections[i].MyField << endl;
@@ -107,7 +123,7 @@ void start_game()
 				}
 				cout << endl;
 			}
-			*/
+			
 			break;
 		default:
 			break;
@@ -124,23 +140,33 @@ void play_game(int* type_game, int* x_wins, int* o_wins, int* d_wins)
 	char player_1, player_2; /*символьные переменные кто за что играет*/
 	int draw; /*Проверка на ничью*/
 	bool game_over, wins; /*Флаговые: конец игры, победа*/
+	
+	int stack_size = 0; /*Размер Стека ходов*/
+	Stack* Hystory = new Stack[stack_size];
 
 	setup(&draw, &game_over, &wins);
+	
 	type_symbol(&turn, &player_1, &player_2, type_game);
 
 	while (game_over != true)
 	{
 		if (*type_game == 1 || *type_game == 2)
 			display_field();
-		move = input_events(&turn, type_game);
+		move = input_events(&turn, type_game, &Hystory, &stack_size);
 		draw++;
 		game_logic(move, &draw, &turn, type_game, &player_1, &player_2, x_wins, o_wins, d_wins, &game_over, &wins);
 	}
+	for (size_t i = 0; i < stack_size; i++)
+	{
+		cout << Hystory[i].current_move << " -> " << Hystory[i].index_weight << endl;
+	}
+	delete[] Hystory;
 }
 
-int input_events(bool* turn, int* type_game)
+int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size)
 {
-	int move;
+	int move, index;
+
 	if ((*turn && *type_game == 1) || (*turn && *type_game == 2))
 	{
 		cout << "Варианты хода:" << "\n\n";
@@ -163,9 +189,13 @@ int input_events(bool* turn, int* type_game)
 		if (get_situation() == -1)
 			Collections = push_database();
 		
-		int index = get_situation();
+		index = get_situation();
+		
+		move = get_smart_random(index);
 
-		return get_smart_random(index);
+		*Hystory = push_stack(move, index, *Hystory, stack_size);
+
+		return move;
 	}
 	else
 	{
@@ -223,133 +253,23 @@ void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1,
 	}
 }
 
-void setup(int* draw, bool* game_over, bool* wins)
-{	
-	*game_over = false;
-	*wins = false;
-	*draw = 0;
-	clear_field();
-}
-
-void type_symbol(bool* turn, char* player_1, char* player_2, int* type_game)
+Stack* push_stack(int move, int index, Stack* Hystory, int* stack_size)
 {
-	int type_symbol = rand() % 2 + 1;
+	Stack* Temp = new Stack[*stack_size + 1];
 
-	if (type_symbol == 2)
+	for (int i = 0; i < *stack_size; i++)
 	{
-		*player_1 = 'O'; *player_2 = 'X';
-		*turn = false;
-	}
-	else
-	{
-		*player_1 = 'X'; *player_2 = 'O';
-		*turn = true;
+		Temp[i] = Hystory[i];
 	}
 
-	if ((type_symbol == 2 && *type_game == 1) || (type_symbol == 2 && *type_game == 2))
-	{
-		cout << "\tСлучайным образом определено что Вы играете за нолики O." << endl;
-		cout << "\tПротивник играет за крестики Х (крестики ходят первыми)." << endl;
-		cout << endl;
-		system("pause");
-	}
-	else if ((type_symbol == 1 && *type_game == 1) || (type_symbol == 1 && *type_game == 2))
-	{
-		cout << "\tСлучайным образом определено что Вы играете за крестики Х" << endl;
-		cout << "\t(крестики ходят первыми). Противник играет за нолики O." << endl;
-		cout << endl;
-		system("pause");
-	}
-}
+	Temp[*stack_size].current_move = move;
+	Temp[*stack_size].index_weight = index;
+	
+	delete[] Hystory;
 
-void clear_field()
-{
-	for (int i = 0; i < field_size; i++)
-	{
-		Field[i] = ' ';
-		FieldVar[i] = (i + 1) + '0';
-	}
-}
+	(*stack_size)++;
 
-void display_field()
-{
-	system("cls");
-	cout << "\n\n";
-	for (int i = 0; i < field_size; i++)
-	{
-		if (i == 2 || i == 5 || i == 8)
-			cout << "\t" << setw(2) << "-" << Field[i] << "-" << endl;
-		else
-			cout << "\t" << setw(2) << "-" << Field[i] << "-  |";
-	}
-	cout << "\n\n";
-}
-
-int random_player()
-{
-	int move = 0, count = 0;
-
-	for (int i = 0; i < field_size; i++)
-	{
-		if (Field[i] == ' ') count++;
-	}
-
-	int* pTmp = new int[count];
-
-	for (int i = 0, j = 0; i < field_size; i++)
-	{
-		if (Field[i] == ' ')
-		{
-			pTmp[j] = i;
-			j++;
-		}
-	}
-
-	move = pTmp[rand() % count];
-
-	delete[] pTmp;
-
-	return move;
-}
-
-char check_wins(int* draw, int* type_game, int* x_wins, int* o_wins, int* d_wins, bool* wins)
-{
-	int victory[8][3] = { {0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
-	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
-
-	for (int i = 0; i < field_size - 1; i++)
-	{
-		if (Field[victory[i][0]] == Field[victory[i][1]] &&
-			Field[victory[i][0]] == Field[victory[i][2]] &&
-			Field[victory[i][0]] != ' ')
-		{
-			*wins = true;
-			/*if (*type_game != 3)*/ Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
-			return Field[victory[i][0]] == 'X' ? 'X' : 'O';
-		}
-	}
-	if (*draw == 9)
-	{
-		*wins = true;
-		/*if (*type_game != 3)*/ (*d_wins)++;
-		return 'D';
-	}
-	return 'U';
-}
-
-void wins_stat(char XOD, int* type_game, int* x_wins, int* o_wins, int* d_wins, bool* game_over)
-{
-	if (*type_game == 1 || *type_game == 2)
-	{
-		display_field();
-		if (XOD != 'D')
-			cout << "\t" << "Поздравляем, победили - " << XOD << " !\n\n";
-		else
-			cout << "\t" << "Спасибо за игру, это ничья!" << "\n\n";
-		cout << "Победы X: " << *x_wins << " Победы O: " << *o_wins << " Ничьи: " << *d_wins << "\n\n";
-	}
-
-	*game_over = true;
+	return Temp;
 }
 
 DataBase* push_database()
@@ -437,4 +357,138 @@ int get_smart_random(int index)
 void smart_learn()
 {
 
+}
+
+int random_player()
+{
+	int move = 0, count = 0;
+
+	for (int i = 0; i < field_size; i++)
+	{
+		if (Field[i] == ' ') count++;
+	}
+
+	int* pTmp = new int[count];
+
+	for (int i = 0, j = 0; i < field_size; i++)
+	{
+		if (Field[i] == ' ')
+		{
+			pTmp[j] = i;
+			j++;
+		}
+	}
+
+	move = pTmp[rand() % count];
+
+	delete[] pTmp;
+
+	return move;
+}
+
+void setup(int* draw, bool* game_over, bool* wins)
+{
+	*game_over = false;
+	*wins = false;
+	*draw = 0;
+	clear_field();
+}
+
+void type_symbol(bool* turn, char* player_1, char* player_2, int* type_game)
+{
+	int type_symbol = rand() % 2 + 1;
+
+	if (type_symbol == 2)
+	{
+		*player_1 = 'O'; *player_2 = 'X';
+		*turn = false;
+	}
+	else
+	{
+		*player_1 = 'X'; *player_2 = 'O';
+		*turn = true;
+	}
+
+	if ((type_symbol == 2 && *type_game == 1) || (type_symbol == 2 && *type_game == 2))
+	{
+		cout << "\tСлучайным образом определено что Вы играете за нолики O." << endl;
+		cout << "\tПротивник играет за крестики Х (крестики ходят первыми)." << endl;
+		cout << endl;
+		system("pause");
+	}
+	else if ((type_symbol == 1 && *type_game == 1) || (type_symbol == 1 && *type_game == 2))
+	{
+		cout << "\tСлучайным образом определено что Вы играете за крестики Х" << endl;
+		cout << "\t(крестики ходят первыми). Противник играет за нолики O." << endl;
+		cout << endl;
+		system("pause");
+	}
+}
+
+void clear_field()
+{
+	for (int i = 0; i < field_size; i++)
+	{
+		Field[i] = ' ';
+		FieldVar[i] = (i + 1) + '0';
+	}
+}
+
+void display_field()
+{
+	system("cls");
+	cout << "\n\n";
+	for (int i = 0; i < field_size; i++)
+	{
+		if (i == 2 || i == 5 || i == 8)
+			cout << "\t" << setw(2) << "-" << Field[i] << "-" << endl;
+		else
+			cout << "\t" << setw(2) << "-" << Field[i] << "-  |";
+	}
+	cout << "\n\n";
+}
+
+char check_wins(int* draw, int* type_game, int* x_wins, int* o_wins, int* d_wins, bool* wins)
+{
+	int victory[8][3] = { {0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
+	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
+
+	for (int i = 0; i < field_size - 1; i++)
+	{
+		if (Field[victory[i][0]] == Field[victory[i][1]] &&
+			Field[victory[i][0]] == Field[victory[i][2]] &&
+			Field[victory[i][0]] != ' ')
+		{
+			*wins = true;
+			/*if (*type_game != 3)*/ Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
+			return Field[victory[i][0]] == 'X' ? 'X' : 'O';
+		}
+	}
+	if (*draw == 9)
+	{
+		*wins = true;
+		/*if (*type_game != 3)*/ (*d_wins)++;
+		return 'D';
+	}
+	return 'U';
+}
+
+void wins_stat(char XOD, int* type_game, int* x_wins, int* o_wins, int* d_wins, bool* game_over)
+{
+	if (*type_game == 1 || *type_game == 2)
+	{
+		display_field();
+		if (XOD != 'D')
+			cout << "\t" << "Поздравляем, победили - " << XOD << " !\n\n";
+		else
+			cout << "\t" << "Спасибо за игру, это ничья!" << "\n\n";
+		cout << "Победы X: " << *x_wins << " Победы O: " << *o_wins << " Ничьи: " << *d_wins << "\n\n";
+	}
+
+	*game_over = true;
+}
+
+void welcome()
+{
+	cout << "\t" << "*Добро пожаловать в Tic-Tac-Toe!*" << "\n\n";
 }
