@@ -14,7 +14,7 @@ const int init_weight = 100; /*Начальный вес матрицы весо
 const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
 const double step_coef = 0.65; /*Коэфициент обучения*/
 const int step_learn = 10; /*Шаг обучения*/
-const int number_of_games = 1000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
+const int number_of_games = 100; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
 
 bool game_over, wins; /*Флаговые: конец игры, победа*/
 int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
@@ -35,16 +35,19 @@ void type_symbol(bool*, char*, char*, int*); /*Функция рандомно �
 void clear_field(); /*Функция очищает игровые поля*/
 void display_field(); /*Функция выводит игровое поле*/
 int random_player(); /*Функция возвращает возможный ход, случайно, в стратегии Random*/
-int input_events(bool*, int*, DataBase*, int*); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
+int input_events(bool*, int*); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
 char check_wins(int*, int*); /*Функция проверяет на победу после каждого хода*/
 void wins_stat(char, int*); /*Функция выводит поздравление о выиграше*/
 void game_logic(int, int*, bool*, int*, char*, char*); /*Функция логики игры*/
-void play_game(int*, DataBase*, int*); /*Функция loop цикла 1 партии*/
+void play_game(int*); /*Функция loop цикла 1 партии*/
 
-DataBase* push_database(DataBase*, int*);
-int get_situation(DataBase*, int*);
-int get_smart_random(int*);
+DataBase* push_database();
+int get_situation();
+int get_smart_random(int);
 void smart_learn(); /*Рекурсивная функция обучения*/
+
+int size_database = 0;
+DataBase* Collections = new DataBase[size_database];
 
 int main()
 {
@@ -66,9 +69,6 @@ void start_game()
 	int menu;
 	bool loop = true;
 	int type_game; /*тип игры, Random или Smart*/
-	
-	int size_database = 0;
-	DataBase* Collections = new DataBase[size_database];
 
 	while (loop == true)
 	{
@@ -85,19 +85,19 @@ void start_game()
 		{
 		case 1:
 			type_game = 1;
-			play_game(&type_game, Collections, &size_database);
+			play_game(&type_game);
 			break;
 		case 2:
 		{
 			type_game = 2;
-			play_game(&type_game, Collections, &size_database);
+			play_game(&type_game);
 			break;
 		}
 		case 3:
 			type_game = 3;
 			for (int i = 0; i < number_of_games; i++)
 			{
-				play_game(&type_game, Collections, &size_database);
+				play_game(&type_game);
 			}
 			//cout << "Игрок Smart теперь очень умный!" << "\n\n";
 			cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
@@ -105,9 +105,9 @@ void start_game()
 			{
 				cout << Collections[i].MyField << endl;
 				
-				for (size_t j = 0; j < size_database; j++)
+				for (size_t j = 0; j < 9; j++)
 				{
-					cout << Collections[i].MyField[j] << endl;
+					cout << Collections[i].MyWeight[j] << " ";
 				}
 				cout << endl;
 			}
@@ -120,7 +120,7 @@ void start_game()
 	}
 }
 
-void play_game(int* type_game, DataBase* Collections, int* size_database)
+void play_game(int* type_game)
 {
 	int move; /*Переменная содержит ход*/
 	bool turn; /*Очередь хода*/
@@ -134,13 +134,13 @@ void play_game(int* type_game, DataBase* Collections, int* size_database)
 	{
 		if (*type_game == 1 || *type_game == 2)
 			display_field();
-		move = input_events(&turn, type_game, Collections, size_database);
+		move = input_events(&turn, type_game);
 		draw++;
 		game_logic(move, &draw, &turn, type_game, &player_1, &player_2);
 	}
 }
 
-int input_events(bool* turn, int* type_game, DataBase* Collections, int* size_database)
+int input_events(bool* turn, int* type_game)
 {
 	int move;
 	if ((*turn && *type_game == 1) || (*turn && *type_game == 2))
@@ -162,12 +162,12 @@ int input_events(bool* turn, int* type_game, DataBase* Collections, int* size_da
 	}
 	else if ((*turn && *type_game == 3) || *type_game == 2)
 	{
-		if (get_situation(Collections, size_database) != 0)
-			Collections = push_database(Collections, size_database);
+		if (get_situation() != 0)
+			Collections = push_database();
 		
-		int index = get_situation(Collections, size_database);
+		int index = get_situation();
 
-		return get_smart_random(Collections[index].MyWeight);
+		return get_smart_random(index);
 	}
 	else
 	{
@@ -353,38 +353,38 @@ void wins_stat(char XOD, int* type_game)
 	game_over = true;
 }
 
-DataBase* push_database(DataBase* Collect, int* size)
+DataBase* push_database()
 {
-	DataBase* Temp = new DataBase[*size + 1];
+	DataBase* Temp = new DataBase[size_database + 1];
 
-	for (int i = 0; i < *size; i++)
+	for (int i = 0; i < size_database; i++)
 	{
-		Temp[i] = Collect[i];
+		Temp[i] = Collections[i];
 	}
 
-	strcpy(Temp[*size].MyField, Field);
+	strcpy(Temp[size_database].MyField, Field);
 
 	for (int i = 0; i < 9; i++)
 	{
-		if (strncmp(&Temp[*size].MyField[i], " ", 1) != 0)
+		if (strncmp(&Temp[size_database].MyField[i], " ", 1) != 0)
 		{
-			Temp[*size].MyWeight[i] = 0;
+			Temp[size_database].MyWeight[i] = 0;
 		}
 	}
 
-	//delete[] Collect;
+	delete[] Collections;
 
-	(*size)++;
+	size_database++;
 
 	return Temp;
 }
 
-int get_situation(DataBase* Collect, int* size)
+int get_situation()
 {
 
-	for (int i = 0; i < *size; i++)
+	for (int i = 0; i < size_database; i++)
 	{
-		if (strcmp(Collect[i].MyField, Field) == 0)
+		if (strcmp(Collections[i].MyField, Field) == 0)
 		{
 			return i;
 		}
@@ -392,22 +392,22 @@ int get_situation(DataBase* Collect, int* size)
 	return -1;
 }
 
-int get_smart_random(int* mas)
+int get_smart_random(int index)
 {
 	int summ = 0, count = 0, move = 0;
 	int mas_temp[9];
 
 	for (int i = 0; i < 9; i++)
 	{
-		summ += mas[i];
-		mas_temp[i] = mas[i];
+		summ += Collections[index].MyWeight[i];
+		mas_temp[i] = Collections[index].MyWeight[i];
 	}
 
-	/*Дописать проверку на summ == 0 когда все хода одинаково плохи*/
+	if (summ == 0) return random_player();
 
 	for (int i = 0; i < 9; i++)
 	{
-		mas_temp[i] = (mas_temp[i] / (double)summ) * precision_coef; //нормализация весов
+		mas_temp[i] = (mas_temp[i] / (double)summ) * precision_coef;
 	}
 
 	for (int i = 0; i < 9; i++)
@@ -434,7 +434,7 @@ int get_smart_random(int* mas)
 
 	delete[] new_mas;
 
-	return move; //return хода на основании матрицы весов 
+	return move;
 }
 
 void smart_learn()
