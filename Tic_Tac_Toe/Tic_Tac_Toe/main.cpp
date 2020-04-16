@@ -4,17 +4,20 @@
 #include <cstring>
 #include <algorithm>
 
+//#define DEBUG_yes
+
 using namespace std;
 
 const int field_size = 9; /*размер игрового поля*/
 const int init_weight = 100; /*Начальный вес матрицы весов*/
-const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
-const double step_coef = 0.65; /*Коэфициент обучения*/
-const int step_learn = 20; /*Шаг обучения*/
-const int number_of_games = 10; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
+const int precision_coef = 95; /*Точность генератора хода для Smart игрока*/
+const double step_coef = 0.95; /*Коэфициент обучения*/
+const int step_learn = 30; /*Шаг обучения*/
+const int number_of_games = 50000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
 
 char Field[field_size]; /*массив под игровое поле*/
 char FieldVar[field_size]; /*массив под поле с вариантами хода*/
+
 int size_database = 0; /*Размер базы данных, изначально равен 0*/
 struct DataBase /*База знаний smart игрока*/
 {
@@ -41,14 +44,14 @@ int random_player(); /*Функция возвращает возможный х
 int input_events(bool*, int*, Stack**, int*); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
 char check_wins(int*, int*, int*, int*, int*, bool*); /*Функция проверяет на победу после каждого хода*/
 void wins_stat(char, int*, int*, int*, int*, bool*); /*Функция выводит поздравление о выиграше*/
-void game_logic(int, int*, bool*, int*, char*, char*, int*, int*, int*, bool*, bool*); /*Функция логики игры*/
+void game_logic(int, int*, bool*, int*, char*, char*, int*, int*, int*, bool*, bool*, Stack**, int*); /*Функция логики игры*/
 void play_game(int*, int*, int*, int*); /*Функция loop цикла 1 партии*/
 
 DataBase* push_database(); /*Добавляет в базу данных неизвестную ситуацию на поле*/
+Stack* push_stack(int, int, Stack*, int*); /*Добавляет в Stack текущий ход игрока Smart*/
 int get_situation(); /*Ищет в базе сложившнюся ситуацию на поле*/
 int get_smart_random(int); /*Генерирует ход Smart игрока на основании матрицы весов*/
-void smart_learn(); /*Рекурсивная функция обучения, уменьшает вес хода в случае проигрыша, и увеличивет наооборот, ничья нейтрально*/
-Stack* push_stack(int, int, Stack*, int*); /*Добавляет в Stack текущий ход игрока Smart*/
+void smart_learn(Stack*, int, int); /*Рекурсивная функция обучения, уменьшает вес хода в случае проигрыша, и увеличивет наооборот, ничья нейтрально*/
 
 int main()
 {
@@ -90,7 +93,7 @@ void start_game()
 		{
 			type_game = 2;
 			play_game(&type_game, &x_wins, &o_wins, &d_wins);
-
+#ifdef DEBUG_yes
 			for (size_t i = 0; i < size_database; i++)
 			{
 				cout << Collections[i].MyField << endl;
@@ -101,7 +104,7 @@ void start_game()
 				}
 				cout << endl;
 			}
-
+#endif // DEBUG_yes	
 			break;
 		}
 		case 3:
@@ -112,7 +115,7 @@ void start_game()
 			}
 			//cout << "Игрок Smart теперь очень умный!" << "\n\n";
 			cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
-			
+#ifdef DEBUG_yes
 			for (size_t i = 0; i < size_database; i++)
 			{
 				cout << Collections[i].MyField << endl;
@@ -123,7 +126,7 @@ void start_game()
 				}
 				cout << endl;
 			}
-			
+#endif // DEBUG_yes			
 			break;
 		default:
 			break;
@@ -154,12 +157,14 @@ void play_game(int* type_game, int* x_wins, int* o_wins, int* d_wins)
 			display_field();
 		move = input_events(&turn, type_game, &Hystory, &stack_size);
 		draw++;
-		game_logic(move, &draw, &turn, type_game, &player_1, &player_2, x_wins, o_wins, d_wins, &game_over, &wins);
+		game_logic(move, &draw, &turn, type_game, &player_1, &player_2, x_wins, o_wins, d_wins, &game_over, &wins, &Hystory, &stack_size);
 	}
+#ifdef DEBUG_yes
 	for (size_t i = 0; i < stack_size; i++)
 	{
 		cout << Hystory[i].current_move << " -> " << Hystory[i].index_weight << endl;
 	}
+#endif // DEBUG_yes
 	delete[] Hystory;
 }
 
@@ -205,7 +210,7 @@ int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size)
 }
 
 void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1, char* player_2,
-	int* x_wins, int* o_wins, int* d_wins, bool* game_over, bool* wins)
+	int* x_wins, int* o_wins, int* d_wins, bool* game_over, bool* wins, Stack** Hystory, int* stack_size)
 {
 	char XOD;
 	if ((*turn && *type_game == 1) || (*turn && *type_game == 2))
@@ -215,6 +220,11 @@ void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1,
 		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
 		if (*wins)
 		{
+			if (XOD != 'D' || *type_game != 1)
+			{
+				int interator = *stack_size - 1;
+				smart_learn(*Hystory, interator, -step_learn);
+			}
 			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
 			return;
 		}
@@ -234,6 +244,11 @@ void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1,
 		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
 		if (*wins)
 		{
+			if (XOD != 'D' || *type_game == 3)
+			{
+				int interator = *stack_size - 1;
+				smart_learn(*Hystory, interator, step_learn);
+			}
 			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
 			return;
 		}
@@ -246,11 +261,31 @@ void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1,
 		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
 		if (*wins)
 		{
+			if (XOD != 'D' || *type_game != 1)
+			{
+				int interator = *stack_size - 1;
+				smart_learn(*Hystory, interator, -step_learn);
+			}
 			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
 			return;
 		}
 		*turn = true;
 	}
+}
+
+void smart_learn(Stack* Hystory, int iterator, int step_learn)
+{	
+	if (iterator < 0)
+		return;
+
+	Collections[Hystory[iterator].index_weight].MyWeight[Hystory[iterator].current_move] += step_learn;
+
+	if ((Collections[Hystory[iterator].index_weight].MyWeight[Hystory[iterator].current_move]) < 0)
+	{
+		Collections[Hystory[iterator].index_weight].MyWeight[Hystory[iterator].current_move] = 0;
+	}
+
+	smart_learn(Hystory, --iterator, step_learn * step_coef);
 }
 
 Stack* push_stack(int move, int index, Stack* Hystory, int* stack_size)
@@ -352,11 +387,6 @@ int get_smart_random(int index)
 	delete[] new_mas;
 
 	return move;
-}
-
-void smart_learn()
-{
-
 }
 
 int random_player()
