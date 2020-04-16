@@ -10,9 +10,9 @@ using namespace std;
 
 const int field_size = 9; /*размер игрового поля*/
 const int init_weight = 100; /*Начальный вес матрицы весов*/
-const int precision_coef = 95; /*Точность генератора хода для Smart игрока*/
-const double step_coef = 0.95; /*Коэфициент обучения*/
-const int step_learn = 30; /*Шаг обучения*/
+const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
+const double step_coef = 0.65; /*Коэфициент обучения*/
+const int step_learn = 20; /*Шаг обучения*/
 const int number_of_games = 50000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
 
 char Field[field_size]; /*массив под игровое поле*/
@@ -213,24 +213,23 @@ void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1,
 	int* x_wins, int* o_wins, int* d_wins, bool* game_over, bool* wins, Stack** Hystory, int* stack_size)
 {
 	char XOD;
-	if ((*turn && *type_game == 1) || (*turn && *type_game == 2))
+	if ((*turn && *type_game == 1) || (*turn && *type_game == 2))/*Ветка Человека*/
 	{
 		Field[move - 1] = *player_1;
 		FieldVar[move - 1] = '-';
 		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
 		if (*wins)
 		{
-			if (XOD != 'D' || *type_game != 1)
+			if (XOD != 'D' && *type_game != 1)
 			{
-				int interator = *stack_size - 1;
-				smart_learn(*Hystory, interator, -step_learn);
+				smart_learn(*Hystory, *stack_size - 1, -step_learn);
 			}
 			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
 			return;
 		}
 		*turn = false;
 	}
-	else if ((*turn && *type_game == 3) || *type_game == 2)
+	else if ((*turn && *type_game == 3) || *type_game == 2) /*Ветка Smart игрока*/
 	{
 		if (*type_game == 2)
 		{
@@ -244,27 +243,25 @@ void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1,
 		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
 		if (*wins)
 		{
-			if (XOD != 'D' || *type_game == 3)
+			if (XOD != 'D')
 			{
-				int interator = *stack_size - 1;
-				smart_learn(*Hystory, interator, step_learn);
+				smart_learn(*Hystory, *stack_size - 1, step_learn);
 			}
 			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
 			return;
 		}
 		*type_game == 2 ? *turn = true : *turn = false;
 	}
-	else
+	else /*Ветка Random игрока*/
 	{
 		Field[move] = *player_2;
 		if (*type_game == 1 || *type_game == 2) FieldVar[move] = '-';
 		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
 		if (*wins)
 		{
-			if (XOD != 'D' || *type_game != 1)
+			if (XOD != 'D' && *type_game != 1)
 			{
-				int interator = *stack_size - 1;
-				smart_learn(*Hystory, interator, -step_learn);
+				smart_learn(*Hystory, *stack_size - 1, -step_learn);
 			}
 			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
 			return;
@@ -380,7 +377,7 @@ int get_smart_random(int index)
 		}
 	}
 
-	random_shuffle(new_mas, new_mas + count);
+	random_shuffle(new_mas, new_mas + count);/*Нужно ли перемешивать?*/
 
 	move = new_mas[rand() % count];
 
