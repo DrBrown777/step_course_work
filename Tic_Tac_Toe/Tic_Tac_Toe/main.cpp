@@ -1,4 +1,6 @@
-﻿#include <iostream>
+﻿/*v.1.16 by dr_brown777*/
+
+#include <iostream>
 #include <iomanip>
 #include <ctime>
 #include <cstring>
@@ -10,16 +12,17 @@ using namespace std;
 
 const int field_size = 9; /*размер игрового поля*/
 const int init_weight = 100; /*Начальный вес матрицы весов*/
-const int precision_coef = 75; /*Точность генератора хода для Smart игрока*/
-const double step_coef = 0.95; /*Коэфициент обучения*/
+const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
+const double step_coef = 0.65; /*Коэфициент обучения*/
 const int step_learn = 20; /*Шаг обучения*/
-const int number_of_games = 50000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
+const int number_of_games = 100000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
 
 char Field[field_size]; /*массив под игровое поле*/
 char FieldVar[field_size]; /*массив под поле с вариантами хода*/
 
 int size_database_X = 0;/*Размер базы данных X*/
 int size_database_O = 0;/*Размер базы данных O*/
+
 struct DataBase /*База знаний smart игрока*/
 {
 	char MyField[9]; //Ситуация на поле
@@ -81,7 +84,7 @@ void start_game()
 	{
 		cout << endl;
 		cout << "\tВыберите вариант игры:" << endl;
-		cout << "\t1 - Против компьютера \"Random\" стратегия" << endl;
+		cout << "\t1 - Тренеровочная партия \"Random\" стратегия" << endl;
 		cout << "\t2 - Против компьютера \"Smart\" стратегия" << endl;
 		cout << "\t3 - Обучить \"Smart\" игрока" << endl;
 		cout << "\t0 - Выход" << endl;
@@ -99,13 +102,13 @@ void start_game()
 			type_game = 2;
 			play_game(&type_game, &x_wins, &o_wins, &d_wins);
 #ifdef DEBUG_yes
-			for (size_t i = 0; i < size_database; i++)
+			for (size_t i = 0; i < size_database_O; i++)
 			{
-				cout << Collections[i].MyField << endl;
+				cout << Collections_O[i].MyField << endl;
 
 				for (size_t j = 0; j < 9; j++)
 				{
-					cout << Collections[i].MyWeight[j] << " ";
+					cout << Collections_O[i].MyWeight[j] << " ";
 				}
 				cout << endl;
 			}
@@ -118,16 +121,15 @@ void start_game()
 			{
 				play_game(&type_game, &x_wins, &o_wins, &d_wins);
 			}
-			//cout << "Игрок Smart теперь очень умный!" << "\n\n";
-			cout << "Победы X: " << x_wins << " Победы O: " << o_wins << " Ничьи: " << d_wins << "\n\n";
+			cout << "Игрок Smart теперь очень умный!" << "\n\n";
 #ifdef DEBUG_yes
-			for (size_t i = 0; i < size_database; i++)
+			for (size_t i = 0; i < size_database_O; i++)
 			{
-				cout << Collections[i].MyField << endl;
+				cout << Collections_O[i].MyField << endl;
 				
 				for (size_t j = 0; j < 9; j++)
 				{
-					cout << Collections[i].MyWeight[j] << " ";
+					cout << Collections_O[i].MyWeight[j] << " ";
 				}
 				cout << endl;
 			}
@@ -150,7 +152,7 @@ void play_game(int* type_game, int* x_wins, int* o_wins, int* d_wins)
 	bool game_over, wins; /*Флаговые: конец игры, победа*/
 	
 	int stack_size = 0; /*Размер Стека ходов*/
-	Stack* Hystory = new Stack[stack_size];
+	Stack* Hystory = new Stack[stack_size]; /*Стек ходов текущей партии*/
 
 	setup(&draw, &game_over, &wins);
 	
@@ -196,7 +198,16 @@ int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size, c
 	}
 	else if ((*turn && *type_game == 3) || *type_game == 2)
 	{
-		if (*player_1 == 'X' && *player_2 == 'O')
+		if (*player_1 == 'X' && *player_2 == 'O' && *type_game == 2)
+		{
+			if (get_situation(Collections_O, size_database_O) == -1)
+				Collections_O = push_database(Collections_O, &size_database_O);
+
+			index = get_situation(Collections_O, size_database_O);
+
+			move = get_smart_random(index, Collections_O);
+		}
+		else if (*player_1 == 'O' && *player_2 == 'X' && *type_game == 2)
 		{
 			if (get_situation(Collections_X, size_database_X) == -1)
 				Collections_X = push_database(Collections_X, &size_database_X);
@@ -205,7 +216,7 @@ int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size, c
 
 			move = get_smart_random(index, Collections_X);
 		}
-		else if (*player_1 == 'O' && *player_2 == 'X')
+		else if (*player_1 == 'O' && *player_2 == 'X' && *type_game == 3)
 		{
 			if (get_situation(Collections_O, size_database_O) == -1)
 				Collections_O = push_database(Collections_O, &size_database_O);
@@ -213,6 +224,15 @@ int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size, c
 			index = get_situation(Collections_O, size_database_O);
 
 			move = get_smart_random(index, Collections_O);
+		}
+		else if (*player_1 == 'X' && *player_2 == 'O' && *type_game == 3)
+		{
+			if (get_situation(Collections_X, size_database_X) == -1)
+				Collections_X = push_database(Collections_X, &size_database_X);
+
+			index = get_situation(Collections_X, size_database_X);
+
+			move = get_smart_random(index, Collections_X);
 		}
 
 		*Hystory = push_stack(move, index, *Hystory, stack_size);
@@ -237,11 +257,11 @@ void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1,
 		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
 		if (*wins)
 		{
-			if (XOD != 'D' && *type_game != 1 && *player_1 == 'X')
+			if (XOD != 'D' && *type_game == 2 && *player_1 == 'X')
 			{
 				smart_learn(*Hystory, *stack_size - 1, -step_learn, Collections_O);
 			}
-			else if (XOD != 'D' && *type_game != 1 && *player_1 == 'O')
+			else if (XOD != 'D' && *type_game == 2 && *player_1 == 'O')
 			{
 				smart_learn(*Hystory, *stack_size - 1, -step_learn, Collections_X);
 			}
@@ -268,15 +288,15 @@ void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1,
 			{
 				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_X);
 			}
-			else if (XOD != 'D' && *player_1 == 'X')
-			{
-				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_X);
-			}
 			else if (XOD != 'D' && *player_2 == 'O' && *type_game == 2)
 			{
 				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_O);
 			}
-			else if (XOD != 'D' && *player_2 == 'O')
+			else if (XOD != 'D' && *player_1 == 'X' && *type_game == 3)
+			{
+				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_X);
+			}
+			else if (XOD != 'D' && *player_1 == 'O' && *type_game == 3)
 			{
 				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_O);
 			}
@@ -524,14 +544,14 @@ char check_wins(int* draw, int* type_game, int* x_wins, int* o_wins, int* d_wins
 			Field[victory[i][0]] != ' ')
 		{
 			*wins = true;
-			/*if (*type_game != 3)*/ Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
+			if (*type_game != 3) Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
 			return Field[victory[i][0]] == 'X' ? 'X' : 'O';
 		}
 	}
 	if (*draw == 9)
 	{
 		*wins = true;
-		/*if (*type_game != 3)*/ (*d_wins)++;
+		if (*type_game != 3) (*d_wins)++;
 		return 'D';
 	}
 	return 'U';
