@@ -19,4 +19,20 @@
       <Filter>Файлы ресурсов</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="tic.png">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="fon.png">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="logo.png">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="comic.ttf">
+      <Filter>Файлы ресурсов</Filter>
+    </Font>
+  </ItemGroup>
 </Project>

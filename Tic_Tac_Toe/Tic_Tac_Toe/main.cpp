@@ -1,24 +1,22 @@
-﻿/*v.1.16 by dr_brown777*/
-
+﻿/*v.1.17 by dr_brown*/
+#include <SFML/Graphics.hpp>
 #include <iostream>
 #include <iomanip>
 #include <ctime>
 #include <cstring>
 #include <algorithm>
+#include <set>
 
-//#define DEBUG_yes
+using namespace sf;
 
-using namespace std;
+const int FIELD_SIZE = 9; /*размер игрового поля*/
+const int INIT_WEIGHT = 100; /*Начальный вес матрицы весов*/
+const int PRECISION_COEF = 50; /*Точность генератора хода для Smart игрока*/
+const double STEP_COEF = 0.65; /*Коэфициент обучения*/
+const int STEP_LEARN = 20; /*Шаг обучения*/
+const int NUMBER_OF_GAMES = 100000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
 
-const int field_size = 9; /*размер игрового поля*/
-const int init_weight = 100; /*Начальный вес матрицы весов*/
-const int precision_coef = 50; /*Точность генератора хода для Smart игрока*/
-const double step_coef = 0.65; /*Коэфициент обучения*/
-const int step_learn = 20; /*Шаг обучения*/
-const int number_of_games = 100000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
-
-char Field[field_size]; /*массив под игровое поле*/
-char FieldVar[field_size]; /*массив под поле с вариантами хода*/
+char Field[FIELD_SIZE]; /*массив под игровое поле*/
 
 int size_database_X = 0;/*Размер базы данных X*/
 int size_database_O = 0;/*Размер базы данных O*/
@@ -28,7 +26,7 @@ struct DataBase /*База знаний smart игрока*/
 	char MyField[9]; //Ситуация на поле
 	int MyWeight[9]; //Матрица весов
 	DataBase() {
-		fill(MyWeight, MyWeight + field_size, init_weight);
+		std::fill(MyWeight, MyWeight + FIELD_SIZE, INIT_WEIGHT);
 	}
 };
 
@@ -41,18 +39,20 @@ struct Stack /*История выполненых ходов Smart игрока
 	int index_weight;
 };
 
-void welcome(); /*Отображает приветствие*/
+struct Wins /*Содержит победный результат*/
+{
+	int mas[3] = { 0 };
+	char xod;
+};
+
 void start_game(); /*Отображает стартовое меню игры и определяет последовательность вызова функций в зависимоти от типа игры*/
-void setup(int*, bool*, bool*); /*Функция инициализации флаговых переменных*/
-void type_symbol(bool*, char*, char*, int*); /*Функция рандомно определяет кто будет играть за X а кто за O*/
+void setup(int*, bool*); /*Функция инициализации флаговых переменных*/
+void type_symbol(bool*, char*, char*, int); /*Функция рандомно определяет кто будет играть за X а кто за O*/
 void clear_field(); /*Функция очищает игровые поля*/
-void display_field(); /*Функция выводит игровое поле*/
 int random_player(); /*Функция возвращает возможный ход, случайно, в стратегии Random*/
-int input_events(bool*, int*, Stack**, int*, char*, char*); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
-char check_wins(int*, int*, int*, int*, int*, bool*); /*Функция проверяет на победу после каждого хода*/
-void wins_stat(char, int*, int*, int*, int*, bool*); /*Функция выводит поздравление о выиграше*/
-void game_logic(int, int*, bool*, int*, char*, char*, int*, int*, int*, bool*, bool*, Stack**, int*); /*Функция логики игры*/
-void play_game(int*, int*, int*, int*); /*Функция loop цикла 1 партии*/
+int input_events(bool*, int, Stack**, int*, char, char); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
+void check_wins(int*, int, int*, int*, int*, bool*, Wins*); /*Функция проверяет на победу после каждого хода*/
+void game_logic(int, int*, bool*, int, char, char, int*, int*, int*, bool*, Stack**, int*, Wins*); /*Функция логики игры*/
 
 DataBase* push_database(DataBase*, int*); /*Добавляет в базу данных неизвестную ситуацию на поле*/
 Stack* push_stack(int, int, Stack*, int*); /*Добавляет в Stack текущий ход игрока Smart*/
@@ -60,12 +60,17 @@ int get_situation(DataBase*, int); /*Ищет в базе сложившнюся
 int get_smart_random(int, DataBase*); /*Генерирует ход Smart игрока на основании матрицы весов*/
 void smart_learn(Stack*, int, int, DataBase*); /*Рекурсивная функция обучения, уменьшает вес хода в случае проигрыша, и увеличивет наооборот, ничья нейтрально*/
 
+void display_statistic(RenderWindow&, int, int, int); /*Выводит статистику*/
+void menu_graph(RenderWindow&, int*, Event, bool game_over = false); /*Выводит меню игры*/
+void display_field(RenderWindow&, char, char, bool game_over = false); /*Выводит игровое полу*/
+int move_human(RenderWindow&); /*Возвращает ход человека*/
+void wins_victory(RenderWindow&, Wins*); /*Выводит полосу при победе*/
+
 int main()
 {
 	setlocale(0, "");
 	srand(unsigned(time(0)));
 
-	welcome();
 	start_game();
 
 	delete[] Collections_X;
@@ -75,130 +80,107 @@ int main()
 
 void start_game()
 {
-	int menu;
-	bool loop = true;
-	int type_game; /*тип игры, Random или Smart*/
+	RenderWindow window(VideoMode(800, 600), L"Крестики-Нолики by dr_brown ver.1.17");
+	Image icon;
+	icon.loadFromFile("tic.png");
+	window.setIcon(32, 32, icon.getPixelsPtr());
+	Texture textureFon;
+	Sprite spritefon;
+	textureFon.loadFromFile("fon.png");
+	spritefon.setTexture(textureFon);
+	spritefon.setPosition(0, 0);
+
+	int type_game = 0; /*тип игры, Random или Smart*/
 	int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
 
-	while (loop == true)
-	{
-		cout << endl;
-		cout << "\tВыберите вариант игры:" << endl;
-		cout << "\t1 - Тренеровочная партия \"Random\" стратегия" << endl;
-		cout << "\t2 - Против компьютера \"Smart\" стратегия" << endl;
-		cout << "\t3 - Обучить \"Smart\" игрока" << endl;
-		cout << "\t0 - Выход" << endl;
-
-		cin >> menu;
-
-		switch (menu)
-		{
-		case 1:
-			type_game = 1;
-			play_game(&type_game, &x_wins, &o_wins, &d_wins);
-			break;
-		case 2:
-		{
-			type_game = 2;
-			play_game(&type_game, &x_wins, &o_wins, &d_wins);
-#ifdef DEBUG_yes
-			for (size_t i = 0; i < size_database_O; i++)
-			{
-				cout << Collections_O[i].MyField << endl;
-
-				for (size_t j = 0; j < 9; j++)
-				{
-					cout << Collections_O[i].MyWeight[j] << " ";
-				}
-				cout << endl;
-			}
-#endif // DEBUG_yes	
-			break;
-		}
-		case 3:
-			type_game = 3;
-			for (int i = 0; i < number_of_games; i++)
-			{
-				play_game(&type_game, &x_wins, &o_wins, &d_wins);
-			}
-			cout << "Игрок Smart теперь очень умный!" << "\n\n";
-#ifdef DEBUG_yes
-			for (size_t i = 0; i < size_database_O; i++)
-			{
-				cout << Collections_O[i].MyField << endl;
-				
-				for (size_t j = 0; j < 9; j++)
-				{
-					cout << Collections_O[i].MyWeight[j] << " ";
-				}
-				cout << endl;
-			}
-#endif // DEBUG_yes			
-			break;
-		default:
-			break;
-		}
-		cout << "Играем еще? (1 / 0 - Да / Нет) ";
-		cin >> loop;
-	}
-}
-
-void play_game(int* type_game, int* x_wins, int* o_wins, int* d_wins)
-{
 	int move; /*Переменная содержит ход*/
-	bool turn; /*Очередь хода*/
-	char player_1, player_2; /*символьные переменные кто за что играет*/
-	int draw; /*Проверка на ничью*/
-	bool game_over, wins; /*Флаговые: конец игры, победа*/
-	
+	bool turn = NULL; /*Очередь хода*/
+	char player_1 = NULL, player_2 = NULL; /*символьные переменные кто за что играет*/
+	int draw = 0; /*Сумма ходов двух игроков*/
+	bool game_over = false; /*Флаговая: конец игры*/
 	int stack_size = 0; /*Размер Стека ходов*/
-	Stack* Hystory = new Stack[stack_size]; /*Стек ходов текущей партии*/
+	Stack* Hystory = nullptr;
+	Wins* Win = new Wins;
 
-	setup(&draw, &game_over, &wins);
-	
-	type_symbol(&turn, &player_1, &player_2, type_game);
+	while (window.isOpen())
+	{
+		Event event;
+		while (window.pollEvent(event))
+		{
+			if (event.type == Event::Closed)
+				window.close();
+		}
+		if (type_game == 0)
+		{
+			window.clear();
+			window.draw(spritefon);
+			if (game_over == true) { display_field(window, player_1, player_2, game_over); wins_victory(window, Win); }
+			menu_graph(window, &type_game, event, game_over);
+			display_statistic(window, x_wins, o_wins, d_wins);
+			window.display();
+			if (type_game == 1 || type_game == 2)
+			{
+				setup(&draw, &game_over);
+				type_symbol(&turn, &player_1, &player_2, type_game);
+				window.clear();
+				window.draw(spritefon);
+			}
+		}
+		if (type_game == 3)
+		{
+			for (int i = 0; i < NUMBER_OF_GAMES; i++)
+			{
+				setup(&draw, &game_over);
+				type_symbol(&turn, &player_1, &player_2, type_game);
+				while (game_over != true)
+				{
+					move = input_events(&turn, type_game, &Hystory, &stack_size, player_1, player_2);
+					draw++;
+					game_logic(move, &draw, &turn, type_game, player_1, player_2, &x_wins, &o_wins, &d_wins, &game_over, &Hystory, &stack_size, Win);
+				}
+				stack_size = 0; Hystory = nullptr;
+			}
+			type_game = 0;
+		}
+		else if (type_game == 1 || type_game == 2)
+		{
+			window.clear();
+			window.draw(spritefon);
+			display_field(window, player_1, player_2);
+			display_statistic(window, x_wins, o_wins, d_wins);
+			window.display();
+			if (turn)
+			{
+				move = -1;
+				do
+				{
+					move = move_human(window);
 
-	while (game_over != true)
-	{
-		if (*type_game == 1 || *type_game == 2)
-			display_field();
-		move = input_events(&turn, type_game, &Hystory, &stack_size, &player_1, &player_2);
-		draw++;
-		game_logic(move, &draw, &turn, type_game, &player_1, &player_2, x_wins, o_wins, d_wins, &game_over, &wins, &Hystory, &stack_size);
+				} while (move == -1 || Field[move] == 'X' || Field[move] == 'O');
+			}
+			else
+			{
+				move = input_events(&turn, type_game, &Hystory, &stack_size, player_1, player_2);
+			}
+			draw++;
+			game_logic(move, &draw, &turn, type_game, player_1, player_2, &x_wins, &o_wins, &d_wins, &game_over, &Hystory, &stack_size, Win);
+			if (game_over == true)
+			{
+				if (type_game == 2) stack_size = 0; Hystory = nullptr;
+				type_game = 0;
+			}
+		}
 	}
-#ifdef DEBUG_yes
-	for (size_t i = 0; i < stack_size; i++)
-	{
-		cout << Hystory[i].current_move << " -> " << Hystory[i].index_weight << endl;
-	}
-#endif // DEBUG_yes
-	delete[] Hystory;
+	delete[] Hystory; delete Win;
 }
 
-int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size, char* player_1, char* player_2)
+int input_events(bool* turn, int type_game, Stack** Hystory, int* stack_size, char player_1, char player_2)
 {
-	int move, index;
+	int move = 0, index;
 
-	if ((*turn && *type_game == 1) || (*turn && *type_game == 2))
+	if ((*turn && type_game == 3) || type_game == 2)
 	{
-		cout << "Варианты хода:" << "\n\n";
-		for (int i = 0; i < field_size; i++)
-		{
-			if (i == 2 || i == 5 || i == 8)
-				cout << "\t" << setw(2) << "-" << FieldVar[i] << "-" << endl;
-			else
-				cout << "\t" << setw(2) << "-" << FieldVar[i] << "-  |";
-		}
-		cout << endl;
-		do
-		{
-			cout << "Сделайте ход (1-9) -> ";
-			cin >> move;
-		} while (move < 1 || move > 9 || Field[move - 1] == 'X' || Field[move - 1] == 'O');
-	}
-	else if ((*turn && *type_game == 3) || *type_game == 2)
-	{
-		if (*player_1 == 'X' && *player_2 == 'O' && *type_game == 2)
+		if (player_1 == 'X' && player_2 == 'O' && type_game == 2)
 		{
 			if (get_situation(Collections_O, size_database_O) == -1)
 				Collections_O = push_database(Collections_O, &size_database_O);
@@ -207,7 +189,7 @@ int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size, c
 
 			move = get_smart_random(index, Collections_O);
 		}
-		else if (*player_1 == 'O' && *player_2 == 'X' && *type_game == 2)
+		else if (player_1 == 'O' && player_2 == 'X' && type_game == 2)
 		{
 			if (get_situation(Collections_X, size_database_X) == -1)
 				Collections_X = push_database(Collections_X, &size_database_X);
@@ -216,7 +198,7 @@ int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size, c
 
 			move = get_smart_random(index, Collections_X);
 		}
-		else if (*player_1 == 'O' && *player_2 == 'X' && *type_game == 3)
+		else if (player_1 == 'O' && player_2 == 'X' && type_game == 3)
 		{
 			if (get_situation(Collections_O, size_database_O) == -1)
 				Collections_O = push_database(Collections_O, &size_database_O);
@@ -225,7 +207,7 @@ int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size, c
 
 			move = get_smart_random(index, Collections_O);
 		}
-		else if (*player_1 == 'X' && *player_2 == 'O' && *type_game == 3)
+		else if (player_1 == 'X' && player_2 == 'O' && type_game == 3)
 		{
 			if (get_situation(Collections_X, size_database_X) == -1)
 				Collections_X = push_database(Collections_X, &size_database_X);
@@ -246,100 +228,129 @@ int input_events(bool* turn, int* type_game, Stack** Hystory, int* stack_size, c
 	return move;
 }
 
-void game_logic(int move, int* draw, bool* turn, int* type_game, char* player_1, char* player_2,
-	int* x_wins, int* o_wins, int* d_wins, bool* game_over, bool* wins, Stack** Hystory, int* stack_size)
+void game_logic(int move, int* draw, bool* turn, int type_game, char player_1, char player_2,
+	int* x_wins, int* o_wins, int* d_wins, bool* game_over, Stack** Hystory, int* stack_size, Wins* Win)
 {
-	char XOD;
-	if ((*turn && *type_game == 1) || (*turn && *type_game == 2))/*Ветка Человека*/
+	bool wins = false;
+	if ((*turn && type_game == 1) || (*turn && type_game == 2))/*Ветка Человека*/
 	{
-		Field[move - 1] = *player_1;
-		FieldVar[move - 1] = '-';
-		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
-		if (*wins)
+		Field[move] = player_1;
+		check_wins(draw, type_game, x_wins, o_wins, d_wins, &wins, Win);
+		if (wins)
 		{
-			if (XOD != 'D' && *type_game == 2 && *player_1 == 'X')
+			if (Win->xod != 'D' && type_game == 2 && player_1 == 'X')
 			{
-				smart_learn(*Hystory, *stack_size - 1, -step_learn, Collections_O);
+				smart_learn(*Hystory, *stack_size - 1, -STEP_LEARN, Collections_O);
 			}
-			else if (XOD != 'D' && *type_game == 2 && *player_1 == 'O')
+			else if (Win->xod != 'D' && type_game == 2 && player_1 == 'O')
 			{
-				smart_learn(*Hystory, *stack_size - 1, -step_learn, Collections_X);
+				smart_learn(*Hystory, *stack_size - 1, -STEP_LEARN, Collections_X);
 			}
-			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
+			*game_over = true;
 			return;
 		}
 		*turn = false;
 	}
-	else if ((*turn && *type_game == 3) || *type_game == 2) /*Ветка Smart игрока*/
+	else if ((*turn && type_game == 3) || type_game == 2) /*Ветка Smart игрока*/
 	{
-		if (*type_game == 2)
+		if (type_game == 2)
 		{
-			Field[move] = *player_2;
-			FieldVar[move] = '-';
+			Field[move] = player_2;
 		}
 		else
 		{
-			Field[move] = *player_1;
+			Field[move] = player_1;
 		}
-		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
-		if (*wins)
+		check_wins(draw, type_game, x_wins, o_wins, d_wins, &wins, Win);
+		if (wins)
 		{
-			if (XOD != 'D' && *player_2 == 'X' && *type_game == 2)
+			if (Win->xod != 'D' && player_2 == 'X' && type_game == 2)
 			{
-				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_X);
+				smart_learn(*Hystory, *stack_size - 1, STEP_LEARN, Collections_X);
 			}
-			else if (XOD != 'D' && *player_2 == 'O' && *type_game == 2)
+			else if (Win->xod != 'D' && player_2 == 'O' && type_game == 2)
 			{
-				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_O);
+				smart_learn(*Hystory, *stack_size - 1, STEP_LEARN, Collections_O);
 			}
-			else if (XOD != 'D' && *player_1 == 'X' && *type_game == 3)
+			else if (Win->xod != 'D' && player_1 == 'X' && type_game == 3)
 			{
-				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_X);
+				smart_learn(*Hystory, *stack_size - 1, STEP_LEARN, Collections_X);
 			}
-			else if (XOD != 'D' && *player_1 == 'O' && *type_game == 3)
+			else if (Win->xod != 'D' && player_1 == 'O' && type_game == 3)
 			{
-				smart_learn(*Hystory, *stack_size - 1, step_learn, Collections_O);
+				smart_learn(*Hystory, *stack_size - 1, STEP_LEARN, Collections_O);
 			}
-			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
+			*game_over = true;
 			return;
 		}
-		*type_game == 2 ? *turn = true : *turn = false;
+		type_game == 2 ? *turn = true : *turn = false;
 	}
 	else /*Ветка Random игрока*/
 	{
-		Field[move] = *player_2;
-		if (*type_game == 1 || *type_game == 2) FieldVar[move] = '-';
-		XOD = check_wins(draw, type_game, x_wins, o_wins, d_wins, wins);
-		if (*wins)
+		Field[move] = player_2;
+		check_wins(draw, type_game, x_wins, o_wins, d_wins, &wins, Win);
+		if (wins)
 		{
-			if (XOD != 'D' && *type_game != 1 && *player_2 == 'X')
+			if (Win->xod != 'D' && type_game != 1 && player_2 == 'X')
 			{
-				smart_learn(*Hystory, *stack_size - 1, -step_learn, Collections_O);
+				smart_learn(*Hystory, *stack_size - 1, -STEP_LEARN, Collections_O);
 			}
-			else if (XOD != 'D' && *type_game != 1 && *player_2 == 'O')
+			else if (Win->xod != 'D' && type_game != 1 && player_2 == 'O')
 			{
-				smart_learn(*Hystory, *stack_size - 1, -step_learn, Collections_X);
+				smart_learn(*Hystory, *stack_size - 1, -STEP_LEARN, Collections_X);
 			}
-			wins_stat(XOD, type_game, x_wins, o_wins, d_wins, game_over);
+			*game_over = true;
 			return;
 		}
 		*turn = true;
 	}
 }
 
-void smart_learn(Stack* Hystory, int iterator, int step_learn, DataBase* Collections)
-{	
+void check_wins(int* draw, int type_game, int* x_wins, int* o_wins, int* d_wins, bool* wins, Wins* Win)
+{
+	int victory[8][3] = { {0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
+	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
+
+	for (int i = 0; i < FIELD_SIZE - 1; i++)
+	{
+		if (Field[victory[i][0]] == Field[victory[i][1]] &&
+			Field[victory[i][0]] == Field[victory[i][2]] &&
+			Field[victory[i][0]] != ' ')
+		{
+			*wins = true;
+			if (type_game != 3) Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
+			for (int j = 0, k = 0; j < 3; j++, k++)
+			{
+				Win->mas[j] = victory[i][k];
+			}
+			Field[victory[i][0]] == 'X' ? Win->xod = 'X' : Win->xod = 'O';
+			return;
+		}
+	}
+	if (*draw == 9)
+	{
+		*wins = true;
+		if (type_game != 3) (*d_wins)++;
+		for (int i = 0; i < 3; i++) { Win->mas[i] = 0; }
+		Win->xod = 'D';
+		return;
+	}
+	Win->xod = 'U';
+}
+
+void smart_learn(Stack* Hystory, int iterator, int STEP_LEARN, DataBase* Collections)
+{
 	if (iterator < 0)
 		return;
 
-	Collections[Hystory[iterator].index_weight].MyWeight[Hystory[iterator].current_move] += step_learn;
+	Collections[Hystory[iterator].index_weight].MyWeight[Hystory[iterator].current_move] += STEP_LEARN;
 
 	if ((Collections[Hystory[iterator].index_weight].MyWeight[Hystory[iterator].current_move]) < 0)
 	{
 		Collections[Hystory[iterator].index_weight].MyWeight[Hystory[iterator].current_move] = 0;
 	}
 
-	smart_learn(Hystory, --iterator, step_learn * step_coef, Collections);
+	smart_learn(Hystory, --iterator, STEP_LEARN * STEP_COEF, Collections);
 }
 
 Stack* push_stack(int move, int index, Stack* Hystory, int* stack_size)
@@ -353,7 +364,7 @@ Stack* push_stack(int move, int index, Stack* Hystory, int* stack_size)
 
 	Temp[*stack_size].current_move = move;
 	Temp[*stack_size].index_weight = index;
-	
+
 	delete[] Hystory;
 
 	(*stack_size)++;
@@ -372,7 +383,7 @@ DataBase* push_database(DataBase* Collections, int* size_database)
 
 	strcpy(Temp[*size_database].MyField, Field);
 
-	for (int i = 0; i < field_size; i++)
+	for (int i = 0; i < FIELD_SIZE; i++)
 	{
 		if (strncmp(&Temp[*size_database].MyField[i], " ", 1) != 0)
 		{
@@ -405,25 +416,25 @@ int get_smart_random(int index, DataBase* Collections)
 	int summ = 0, count = 0, move = 0;
 	int mas_temp[9];
 
-	for (int i = 0; i < field_size; i++)
+	for (int i = 0; i < FIELD_SIZE; i++)
 	{
 		summ += Collections[index].MyWeight[i];
 		mas_temp[i] = Collections[index].MyWeight[i];
 	}
 	if (summ == 0) return random_player();
 
-	for (int i = 0; i < field_size; i++)
+	for (int i = 0; i < FIELD_SIZE; i++)
 	{
-		mas_temp[i] = (mas_temp[i] / (double)summ) * precision_coef;
+		mas_temp[i] = (mas_temp[i] / (double)summ) * PRECISION_COEF;
 	}
-	for (int i = 0; i < field_size; i++)
+	for (int i = 0; i < FIELD_SIZE; i++)
 	{
 		count += mas_temp[i];
 	}
 
 	int* new_mas = new int[count];
 
-	for (int i = 0, j = 0; i < field_size; i++)
+	for (int i = 0, j = 0; i < FIELD_SIZE; i++)
 	{
 		int tmp = mas_temp[i];
 		while (tmp != 0)
@@ -434,7 +445,7 @@ int get_smart_random(int index, DataBase* Collections)
 		}
 	}
 
-	random_shuffle(new_mas, new_mas + count);
+	//std::random_shuffle(new_mas, new_mas + count);
 
 	move = new_mas[rand() % count];
 
@@ -447,14 +458,14 @@ int random_player()
 {
 	int move = 0, count = 0;
 
-	for (int i = 0; i < field_size; i++)
+	for (int i = 0; i < FIELD_SIZE; i++)
 	{
 		if (Field[i] == ' ') count++;
 	}
 
 	int* pTmp = new int[count];
 
-	for (int i = 0, j = 0; i < field_size; i++)
+	for (int i = 0, j = 0; i < FIELD_SIZE; i++)
 	{
 		if (Field[i] == ' ')
 		{
@@ -470,15 +481,14 @@ int random_player()
 	return move;
 }
 
-void setup(int* draw, bool* game_over, bool* wins)
+void setup(int* draw, bool* game_over)
 {
 	*game_over = false;
-	*wins = false;
 	*draw = 0;
 	clear_field();
 }
 
-void type_symbol(bool* turn, char* player_1, char* player_2, int* type_game)
+void type_symbol(bool* turn, char* player_1, char* player_2, int type_game)
 {
 	int type_symbol = rand() % 2 + 1;
 
@@ -492,87 +502,327 @@ void type_symbol(bool* turn, char* player_1, char* player_2, int* type_game)
 		*player_1 = 'X'; *player_2 = 'O';
 		*turn = true;
 	}
-
-	if ((type_symbol == 2 && *type_game == 1) || (type_symbol == 2 && *type_game == 2))
-	{
-		cout << "\tСлучайным образом определено что Вы играете за нолики O." << endl;
-		cout << "\tПротивник играет за крестики Х (крестики ходят первыми)." << endl;
-		cout << endl;
-		system("pause");
-	}
-	else if ((type_symbol == 1 && *type_game == 1) || (type_symbol == 1 && *type_game == 2))
-	{
-		cout << "\tСлучайным образом определено что Вы играете за крестики Х" << endl;
-		cout << "\t(крестики ходят первыми). Противник играет за нолики O." << endl;
-		cout << endl;
-		system("pause");
-	}
 }
 
 void clear_field()
 {
-	for (int i = 0; i < field_size; i++)
+	for (int i = 0; i < FIELD_SIZE; i++)
 	{
 		Field[i] = ' ';
-		FieldVar[i] = (i + 1) + '0';
 	}
 }
 
-void display_field()
+void display_statistic(RenderWindow& window, int x_wins, int o_wins, int d_wins)
 {
-	system("cls");
-	cout << "\n\n";
-	for (int i = 0; i < field_size; i++)
+	Text text_2, text_3, text_4, text_5, text_6, text_7, text_8, text_9;
+	Font font;
+	font.loadFromFile("comic.ttf");
+
+	char x[7]; char o[7]; char d[7]; char s[7];
+
+	int summ = x_wins + o_wins + d_wins;
+
+	for (auto it : { &text_2, &text_3, &text_4, &text_8, &text_9 })
 	{
-		if (i == 2 || i == 5 || i == 8)
-			cout << "\t" << setw(2) << "-" << Field[i] << "-" << endl;
-		else
-			cout << "\t" << setw(2) << "-" << Field[i] << "-  |";
+		it->setFont(font);
+		it->setCharacterSize(25);
 	}
-	cout << "\n\n";
+
+	for (auto it : { &text_5, &text_6, &text_7 })
+	{
+		it->setFont(font);
+		it->setCharacterSize(35);
+		it->setColor(Color(65, 105, 255));
+	}
+
+	for (auto it : { &text_2, &text_3, &text_4 })
+	{
+		it->setColor(Color(65, 105, 255));
+		it->setStyle(Text::Underlined);
+	}
+
+	text_3.setColor(Color(220, 20, 60));
+	text_6.setColor(Color(220, 20, 60));
+	text_8.setColor(Color(34, 139, 34));
+	text_9.setColor(Color(34, 139, 34));
+
+	text_2.setString(L"Победы X");
+	text_3.setString(L"Победы O");
+	text_4.setString(L"Ничьи");
+	text_9.setString(L"Всего провели игр: ");
+	text_5.setString(itoa(x_wins, x, 10));
+	text_6.setString(itoa(o_wins, o, 10));
+	text_7.setString(itoa(d_wins, d, 10));
+	text_8.setString(itoa(summ, s, 10));
+
+	text_2.setPosition(75, 400);
+	text_3.setPosition(355, 400);
+	text_4.setPosition(650, 400);
+	text_5.setPosition(75, 450);
+	text_6.setPosition(355, 450);
+	text_7.setPosition(650, 450);
+	text_8.setPosition(500, 520);
+	text_9.setPosition(250, 520);
+
+	window.draw(text_9); window.draw(text_2);
+	window.draw(text_3); window.draw(text_4);
+	window.draw(text_5); window.draw(text_6);
+	window.draw(text_7); window.draw(text_8);
 }
 
-char check_wins(int* draw, int* type_game, int* x_wins, int* o_wins, int* d_wins, bool* wins)
+void menu_graph(RenderWindow& window, int* type_game, Event event, bool game_over)
 {
-	int victory[8][3] = { {0, 1 , 2}, {3, 4, 5}, {6, 7, 8},
-	{0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6} };
+	/*Вместо лого вывести ProgressBar при обучении Smart*/
+	Texture logo;
+	Sprite spritelogo;
+	logo.loadFromFile("logo.png");
+	spritelogo.setTexture(logo);
+	spritelogo.setPosition(100, 80);
 
-	for (int i = 0; i < field_size - 1; i++)
+	Text menu_0, menu_1, menu_2, menu_3, menu_4;
+	Font font;
+	font.loadFromFile("comic.ttf");
+
+	for (auto it : { &menu_0, &menu_1, &menu_2, &menu_3, &menu_4 })
 	{
-		if (Field[victory[i][0]] == Field[victory[i][1]] &&
-			Field[victory[i][0]] == Field[victory[i][2]] &&
-			Field[victory[i][0]] != ' ')
+		it->setFont(font);
+		it->setCharacterSize(30);
+		it->setColor(Color(255, 140, 0));
+	}
+
+	menu_0.setColor(Color::Black);
+	menu_4.setColor(Color(255, 20, 147));
+
+	menu_0.setStyle(Text::Underlined);
+
+	menu_0.setString(L"Выберите вариант игры");
+	menu_1.setString(L"Пробная игра Random");
+	menu_2.setString(L"Против Smart игрока");
+	menu_3.setString(L"Обучить Smart игрока");
+	menu_4.setString(L"Выход");
+
+	menu_0.setPosition(430, 70);
+	menu_1.setPosition(450, 130);
+	menu_2.setPosition(450, 190);
+	menu_3.setPosition(450, 250);
+	menu_4.setPosition(560, 300);
+
+	if (IntRect(450, 130, 320, 30).contains(Mouse::getPosition(window)))
+	{
+		menu_1.setColor(Color::Blue);
+		if (event.type == Event::MouseButtonReleased)
+			if (event.mouseButton.button == Mouse::Left) *type_game = 1;
+	}
+
+	if (IntRect(450, 190, 320, 30).contains(Mouse::getPosition(window)))
+	{
+		menu_2.setColor(Color::Blue);
+		if (event.type == Event::MouseButtonReleased)
+			if (event.mouseButton.button == Mouse::Left) *type_game = 2;
+	}
+	if (IntRect(450, 250, 320, 30).contains(Mouse::getPosition(window)))
+	{
+		menu_3.setColor(Color::Blue);
+		if (event.type == Event::MouseButtonReleased)
+			if (event.mouseButton.button == Mouse::Left) *type_game = 3;
+	}
+	if (IntRect(560, 300, 100, 30).contains(Mouse::getPosition(window)))
+	{
+		menu_4.setColor(Color::Black);
+		if (event.type == Event::MouseButtonReleased)
+			if (event.mouseButton.button == Mouse::Left) window.close();
+	}
+
+	window.draw(menu_0); window.draw(menu_1);
+	window.draw(menu_2); window.draw(menu_3);
+	window.draw(menu_4);
+	if (!game_over)
+	{
+		window.draw(spritelogo);
+	}
+}
+
+void display_field(RenderWindow& window, char player_1, char player_2, bool game_over)
+{
+	RectangleShape line_1(Vector2f(300.f, 3.f)), line_2(Vector2f(300.f, 3.f));
+	RectangleShape line_3(Vector2f(300.f, 3.f)), line_4(Vector2f(300.f, 3.f));
+
+	for (auto it : { &line_1, &line_2, &line_3, &line_4 })
+	{
+		it->setFillColor(Color::Black);
+	}
+
+	line_1.rotate(90); line_2.rotate(90);
+
+	line_1.move(150, 50); line_2.move(250, 50);
+	line_3.move(50, 150); line_4.move(50, 250);
+
+	window.draw(line_1); window.draw(line_2);
+	window.draw(line_3); window.draw(line_4);
+
+	Text X, O, type_char_1, type_char_2, text_1, text_2, text_3;
+	Font font;
+	font.loadFromFile("comic.ttf");
+
+	text_1.setFont(font);
+	text_1.setCharacterSize(25);
+	text_1.setString(L"Определено, что вы играете за ");
+	text_2.setFont(font);
+	text_2.setCharacterSize(25);
+	text_2.setString(L"Противник играет за ");
+	text_3.setFont(font);
+	text_3.setCharacterSize(25);
+	text_3.setString(L"Крестики ходят первыми!");
+	text_3.setColor(Color(65, 105, 255));
+
+	type_char_1.setFont(font);
+	type_char_1.setCharacterSize(75);
+	type_char_1.setString(player_1);
+	type_char_2.setFont(font);
+	type_char_2.setCharacterSize(75);
+	type_char_2.setString(player_2);
+
+	if (player_1 == 'X') {
+		type_char_1.setColor(Color(65, 105, 255));
+		type_char_2.setColor(Color(220, 20, 60));
+		text_1.setColor(Color(65, 105, 255));
+		text_2.setColor(Color(220, 20, 60));
+	}
+	else {
+		type_char_1.setColor(Color(220, 20, 60));
+		type_char_2.setColor(Color(65, 105, 255));
+		text_1.setColor(Color(220, 20, 60));
+		text_2.setColor(Color(65, 105, 255));
+	}
+	text_1.setPosition(400, 75);
+	type_char_1.setPosition(550, 105);
+	text_2.setPosition(450, 190);
+	type_char_2.setPosition(550, 220);
+	text_3.setPosition(425, 310);
+
+	if (!game_over)
+	{
+		window.draw(type_char_1);
+		window.draw(type_char_2);
+		window.draw(text_1);
+		window.draw(text_2);
+		window.draw(text_3);
+	}
+
+	for (auto it : { &X, &O })
+	{
+		it->setFont(font);
+		it->setCharacterSize(100);
+	}
+
+	X.setColor(Color(65, 105, 255));
+	O.setColor(Color(220, 20, 60));
+
+	X.setString("X"); O.setString("O");
+
+	for (int i = 0; i < FIELD_SIZE; i++)
+	{
+		if (Field[i] == 'X')
 		{
-			*wins = true;
-			if (*type_game != 3) Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
-			return Field[victory[i][0]] == 'X' ? 'X' : 'O';
+			if (i == 0) { X.setPosition(60, 35); window.draw(X); }
+			if (i == 1) { X.setPosition(160, 35); window.draw(X); }
+			if (i == 2) { X.setPosition(260, 35); window.draw(X); }
+
+			if (i == 3) { X.setPosition(60, 135); window.draw(X); }
+			if (i == 4) { X.setPosition(160, 135); window.draw(X); }
+			if (i == 5) { X.setPosition(260, 135); window.draw(X); }
+
+			if (i == 6) { X.setPosition(60, 235); window.draw(X); }
+			if (i == 7) { X.setPosition(160, 235); window.draw(X); }
+			if (i == 8) { X.setPosition(260, 235); window.draw(X); }
+		}
+		else if (Field[i] == 'O')
+		{
+			if (i == 0) { O.setPosition(60, 35); window.draw(O); }
+			if (i == 1) { O.setPosition(160, 35); window.draw(O); }
+			if (i == 2) { O.setPosition(260, 35); window.draw(O); }
+
+			if (i == 3) { O.setPosition(60, 135); window.draw(O); }
+			if (i == 4) { O.setPosition(160, 135); window.draw(O); }
+			if (i == 5) { O.setPosition(260, 135); window.draw(O); }
+
+			if (i == 6) { O.setPosition(60, 235); window.draw(O); }
+			if (i == 7) { O.setPosition(160, 235); window.draw(O); }
+			if (i == 8) { O.setPosition(260, 235); window.draw(O); }
 		}
 	}
-	if (*draw == 9)
-	{
-		*wins = true;
-		if (*type_game != 3) (*d_wins)++;
-		return 'D';
-	}
-	return 'U';
 }
 
-void wins_stat(char XOD, int* type_game, int* x_wins, int* o_wins, int* d_wins, bool* game_over)
+int move_human(RenderWindow& window)
 {
-	if (*type_game == 1 || *type_game == 2)
-	{
-		display_field();
-		if (XOD != 'D')
-			cout << "\t" << "Поздравляем, победили - " << XOD << " !\n\n";
-		else
-			cout << "\t" << "Спасибо за игру, это ничья!" << "\n\n";
-		cout << "Победы X: " << *x_wins << " Победы O: " << *o_wins << " Ничьи: " << *d_wins << "\n\n";
-	}
+	if (IntRect(60, 60, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 0;
+	if (IntRect(160, 60, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 1;
+	if (IntRect(260, 60, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 2;
+	if (IntRect(60, 160, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 3;
+	if (IntRect(160, 160, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 4;
+	if (IntRect(260, 160, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 5;
+	if (IntRect(60, 260, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 6;
+	if (IntRect(160, 260, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 7;
+	if (IntRect(260, 260, 80, 80).contains(Mouse::getPosition(window)))
+		if (Mouse::isButtonPressed(Mouse::Left)) return 8;
 
-	*game_over = true;
+	return -1;
 }
 
-void welcome()
+void wins_victory(RenderWindow& window, Wins* Win)
 {
-	cout << "\t" << "*Добро пожаловать в Tic-Tac-Toe!*" << "\n\n";
+	RectangleShape line(Vector2f(300.f, 5.f));
+	RectangleShape line_2(Vector2f(425.f, 5.f));
+
+	line.setFillColor(Color(0, 153, 102));
+	line_2.setFillColor(Color(0, 153, 102));
+
+	if (std::set<int>(Win->mas, Win->mas + 3) == std::set<int>{0, 1, 2})
+	{
+		line.setPosition(50, 100);
+		window.draw(line);
+	}
+	if (std::set<int>(Win->mas, Win->mas + 3) == std::set<int>{3, 4, 5})
+	{
+		line.setPosition(50, 200);
+		window.draw(line);
+	}
+	if (std::set<int>(Win->mas, Win->mas + 3) == std::set<int>{6, 7, 8})
+	{
+		line.setPosition(50, 300);
+		window.draw(line);
+	}
+	if (std::set<int>(Win->mas, Win->mas + 3) == std::set<int>{0, 3, 6})
+	{
+		line.rotate(90); line.setPosition(100, 50);
+		window.draw(line);
+	}
+	if (std::set<int>(Win->mas, Win->mas + 3) == std::set<int>{1, 4, 7})
+	{
+		line.rotate(90); line.setPosition(200, 50);
+		window.draw(line);
+	}
+	if (std::set<int>(Win->mas, Win->mas + 3) == std::set<int>{2, 5, 8})
+	{
+		line.rotate(90); line.setPosition(300, 50);
+		window.draw(line);
+	}
+	if (std::set<int>(Win->mas, Win->mas + 3) == std::set<int>{0, 4, 8})
+	{
+		line_2.rotate(45); line_2.setPosition(50, 50);
+		window.draw(line_2);
+	}
+	if (std::set<int>(Win->mas, Win->mas + 3) == std::set<int>{2, 4, 6})
+	{
+		line_2.rotate(135); line_2.setPosition(350, 50);
+		window.draw(line_2);
+	}
 }
