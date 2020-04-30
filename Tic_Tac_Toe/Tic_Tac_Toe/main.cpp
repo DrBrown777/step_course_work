@@ -93,7 +93,7 @@ void start_game()
 	int type_game = 0; /*тип игры, Random или Smart*/
 	int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
 
-	int move = -1; /*Переменная содержит ход*/
+	int move; /*Переменная содержит ход*/
 	bool turn = NULL; /*Очередь хода*/
 	char player_1 = NULL, player_2 = NULL; /*символьные переменные кто за что играет*/
 	int draw = 0; /*Сумма ходов двух игроков*/
