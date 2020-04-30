@@ -1,4 +1,4 @@
-﻿/*v.1.17 by dr_brown*/
+﻿/*v.1.18 by dr_brown*/
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <iomanip>
@@ -80,7 +80,7 @@ int main()
 
 void start_game()
 {
-	RenderWindow window(VideoMode(800, 600), L"Крестики-Нолики by dr_brown ver.1.17");
+	RenderWindow window(VideoMode(800, 600), L"Крестики-Нолики by dr_brown ver.1.18");
 	Image icon;
 	icon.loadFromFile("tic.png");
 	window.setIcon(32, 32, icon.getPixelsPtr());
@@ -93,7 +93,7 @@ void start_game()
 	int type_game = 0; /*тип игры, Random или Smart*/
 	int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
 
-	int move; /*Переменная содержит ход*/
+	int move = -1; /*Переменная содержит ход*/
 	bool turn = NULL; /*Очередь хода*/
 	char player_1 = NULL, player_2 = NULL; /*символьные переменные кто за что играет*/
 	int draw = 0; /*Сумма ходов двух игроков*/
@@ -155,7 +155,7 @@ void start_game()
 				do
 				{
 					move = move_human(window);
-
+					
 				} while (move == -1 || Field[move] == 'X' || Field[move] == 'O');
 			}
 			else
@@ -755,6 +755,12 @@ void display_field(RenderWindow& window, char player_1, char player_2, bool game
 
 int move_human(RenderWindow& window)
 {
+	Event event;
+	while (window.pollEvent(event))
+	{
+		if (event.type == Event::Closed)
+			window.close();
+	}
 	if (IntRect(60, 60, 80, 80).contains(Mouse::getPosition(window)))
 		if (Mouse::isButtonPressed(Mouse::Left)) return 0;
 	if (IntRect(160, 60, 80, 80).contains(Mouse::getPosition(window)))
