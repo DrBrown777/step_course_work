@@ -1,4 +1,4 @@
-﻿/*v.1.18 by dr_brown*/
+﻿/*v.1.19 by dr_brown*/
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <iomanip>
@@ -11,10 +11,14 @@ using namespace sf;
 
 const int FIELD_SIZE = 9; /*размер игрового поля*/
 const int INIT_WEIGHT = 100; /*Начальный вес матрицы весов*/
+
 const int PRECISION_COEF = 50; /*Точность генератора хода для Smart игрока*/
 const double STEP_COEF = 0.65; /*Коэфициент обучения*/
 const int STEP_LEARN = 20; /*Шаг обучения*/
+
 const int NUMBER_OF_GAMES = 100000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
+
+const bool stat_smart = true; /*Отображать статистику после обучения Smart*/
 
 char Field[FIELD_SIZE]; /*массив под игровое поле*/
 
@@ -39,7 +43,7 @@ struct Stack /*История выполненых ходов Smart игрока
 	int index_weight;
 };
 
-struct Wins /*Содержит победный результат*/
+struct Wins /*Содержит победную комбинацию и кто выиграл*/
 {
 	int mas[3] = { 0 };
 	char xod;
@@ -80,7 +84,7 @@ int main()
 
 void start_game()
 {
-	RenderWindow window(VideoMode(800, 600), L"Крестики-Нолики by dr_brown ver.1.18");
+	RenderWindow window(VideoMode(800, 600), L"Крестики-Нолики by dr_brown ver.1.19");
 	Image icon;
 	icon.loadFromFile("tic.png");
 	window.setIcon(32, 32, icon.getPixelsPtr());
@@ -93,14 +97,12 @@ void start_game()
 	int type_game = 0; /*тип игры, Random или Smart*/
 	int x_wins = 0, o_wins = 0, d_wins = 0; /*накопительные переменные для статы*/
 
-	int move; /*Переменная содержит ход*/
+	int move = NULL; /*Переменная содержит ход*/
 	bool turn = NULL; /*Очередь хода*/
 	char player_1 = NULL, player_2 = NULL; /*символьные переменные кто за что играет*/
 	int draw = 0; /*Сумма ходов двух игроков*/
 	bool game_over = false; /*Флаговая: конец игры*/
-	int stack_size = 0; /*Размер Стека ходов*/
-	Stack* Hystory = nullptr;
-	Wins* Win = new Wins;
+	Wins* Win = new Wins; /*Содержит победную комбинацию и кто выиграл*/
 
 	while (window.isOpen())
 	{
@@ -114,7 +116,11 @@ void start_game()
 		{
 			window.clear();
 			window.draw(spritefon);
-			if (game_over == true) { display_field(window, player_1, player_2, game_over); wins_victory(window, Win); }
+			if (game_over == true) 
+			{ 
+				display_field(window, player_1, player_2, game_over); 
+				wins_victory(window, Win); 
+			}
 			menu_graph(window, &type_game, event, game_over);
 			display_statistic(window, x_wins, o_wins, d_wins);
 			window.display();
@@ -132,13 +138,15 @@ void start_game()
 			{
 				setup(&draw, &game_over);
 				type_symbol(&turn, &player_1, &player_2, type_game);
+				Stack* Hystory = nullptr;
+				int stack_size = 0;
 				while (game_over != true)
 				{
 					move = input_events(&turn, type_game, &Hystory, &stack_size, player_1, player_2);
 					draw++;
 					game_logic(move, &draw, &turn, type_game, player_1, player_2, &x_wins, &o_wins, &d_wins, &game_over, &Hystory, &stack_size, Win);
 				}
-				stack_size = 0; Hystory = nullptr;
+				delete[] Hystory;
 			}
 			type_game = 0;
 		}
@@ -149,6 +157,8 @@ void start_game()
 			display_field(window, player_1, player_2);
 			display_statistic(window, x_wins, o_wins, d_wins);
 			window.display();
+			Stack* Hystory = nullptr;
+			int stack_size = 0;
 			if (turn)
 			{
 				move = -1;
@@ -166,12 +176,12 @@ void start_game()
 			game_logic(move, &draw, &turn, type_game, player_1, player_2, &x_wins, &o_wins, &d_wins, &game_over, &Hystory, &stack_size, Win);
 			if (game_over == true)
 			{
-				if (type_game == 2) stack_size = 0; Hystory = nullptr;
+				stack_size = 0; delete[] Hystory;
 				type_game = 0;
 			}
 		}
 	}
-	delete[] Hystory; delete Win;
+	delete Win;
 }
 
 int input_events(bool* turn, int type_game, Stack** Hystory, int* stack_size, char player_1, char player_2)
@@ -318,7 +328,10 @@ void check_wins(int* draw, int type_game, int* x_wins, int* o_wins, int* d_wins,
 			Field[victory[i][0]] != ' ')
 		{
 			*wins = true;
-			if (type_game != 3) Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
+			if (stat_smart == true && type_game == 3)
+				Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
+			else if (type_game != 3)
+				Field[victory[i][0]] == 'X' ? (*x_wins)++ : (*o_wins)++;
 			for (int j = 0, k = 0; j < 3; j++, k++)
 			{
 				Win->mas[j] = victory[i][k];
@@ -330,7 +343,10 @@ void check_wins(int* draw, int type_game, int* x_wins, int* o_wins, int* d_wins,
 	if (*draw == 9)
 	{
 		*wins = true;
-		if (type_game != 3) (*d_wins)++;
+		if (stat_smart == true && type_game == 3)
+			(*d_wins)++;
+		else if (type_game != 3)
+			(*d_wins)++;
 		for (int i = 0; i < 3; i++) { Win->mas[i] = 0; }
 		Win->xod = 'D';
 		return;
@@ -421,6 +437,7 @@ int get_smart_random(int index, DataBase* Collections)
 		summ += Collections[index].MyWeight[i];
 		mas_temp[i] = Collections[index].MyWeight[i];
 	}
+	
 	if (summ == 0) return random_player();
 
 	for (int i = 0; i < FIELD_SIZE; i++)
@@ -445,7 +462,7 @@ int get_smart_random(int index, DataBase* Collections)
 		}
 	}
 
-	//std::random_shuffle(new_mas, new_mas + count);
+	std::random_shuffle(new_mas, new_mas + count);
 
 	move = new_mas[rand() % count];
 
