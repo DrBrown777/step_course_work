@@ -11,17 +11,13 @@ using namespace sf;
 
 const int FIELD_SIZE = 9; /*размер игрового поля*/
 const int INIT_WEIGHT = 100; /*Начальный вес матрицы весов*/
-
-const int PRECISION_COEF = 50; /*Точность генератора хода для Smart игрока*/
-const double STEP_COEF = 0.65; /*Коэфициент обучения*/
+const int PRECISION_COEF = 75; /*Точность генератора хода для Smart игрока*/
+const double STEP_COEF = 0.75; /*Коэфициент обучения*/
 const int STEP_LEARN = 20; /*Шаг обучения*/
-
 const int NUMBER_OF_GAMES = 100000; /*Кол-во игр которые должен сыграть Smart игрок для обучения*/
-
 const bool stat_smart = true; /*Отображать статистику после обучения Smart*/
 
 char Field[FIELD_SIZE]; /*массив под игровое поле*/
-
 int size_database_X = 0;/*Размер базы данных X*/
 int size_database_O = 0;/*Размер базы данных O*/
 
@@ -57,7 +53,6 @@ int random_player(); /*Функция возвращает возможный х
 int input_events(bool*, int, Stack**, int*, char, char); /*Функция возвращает ход сделанный пользователем с клавиатуры, и выводит оставшиеся варианты хода*/
 void check_wins(int*, int, int*, int*, int*, bool*, Wins*); /*Функция проверяет на победу после каждого хода*/
 void game_logic(int, int*, bool*, int, char, char, int*, int*, int*, bool*, Stack**, int*, Wins*); /*Функция логики игры*/
-
 DataBase* push_database(DataBase*, int*); /*Добавляет в базу данных неизвестную ситуацию на поле*/
 Stack* push_stack(int, int, Stack*, int*); /*Добавляет в Stack текущий ход игрока Smart*/
 int get_situation(DataBase*, int); /*Ищет в базе сложившнюся ситуацию на поле*/
@@ -69,6 +64,7 @@ void menu_graph(RenderWindow&, int*, Event, bool game_over = false); /*Выво�
 void display_field(RenderWindow&, char, char, bool game_over = false); /*Выводит игровое полу*/
 int move_human(RenderWindow&); /*Возвращает ход человека*/
 void wins_victory(RenderWindow&, Wins*); /*Выводит полосу при победе*/
+void progress_bar(RenderWindow&, int); /*Выводит ProgressBar при обучении Smart*/
 
 int main()
 {
@@ -134,8 +130,13 @@ void start_game()
 		}
 		if (type_game == 3)
 		{
+			int line_bar = 0;
 			for (int i = 0; i < NUMBER_OF_GAMES; i++)
 			{
+				if (i % (NUMBER_OF_GAMES/700) == 0)
+				{
+					progress_bar(window, line_bar += 1);
+				}
 				setup(&draw, &game_over);
 				type_symbol(&turn, &player_1, &player_2, type_game);
 				Stack* Hystory = nullptr;
@@ -589,7 +590,6 @@ void display_statistic(RenderWindow& window, int x_wins, int o_wins, int d_wins)
 
 void menu_graph(RenderWindow& window, int* type_game, Event event, bool game_over)
 {
-	/*Вместо лого вывести ProgressBar при обучении Smart*/
 	Texture logo;
 	Sprite spritelogo;
 	logo.loadFromFile("logo.png");
@@ -848,4 +848,24 @@ void wins_victory(RenderWindow& window, Wins* Win)
 		line_2.rotate(135); line_2.setPosition(350, 50);
 		window.draw(line_2);
 	}
+}
+
+void progress_bar(RenderWindow& window, int line_bar)
+{
+	Event event;
+	while (window.pollEvent(event))
+	{
+		if (event.type == Event::Closed)
+			window.close();
+	}
+
+	RectangleShape progressBar;
+	progressBar.setFillColor(Color(127, 255, 212));
+	progressBar.setOutlineThickness(2);
+	progressBar.setOutlineColor(Color::Black);
+	progressBar.setPosition(50, 20);
+	progressBar.setSize(Vector2f(line_bar, 20));
+
+	window.draw(progressBar);
+	window.display();
 }
