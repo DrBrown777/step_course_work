@@ -1,4 +1,4 @@
-﻿/*v.1.19 by dr_brown*/
+﻿/*v.1.2 by dr_brown*/
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <iomanip>
@@ -80,7 +80,7 @@ int main()
 
 void start_game()
 {
-	RenderWindow window(VideoMode(800, 600), L"Крестики-Нолики by dr_brown ver.1.19");
+	RenderWindow window(VideoMode(800, 600), L"Крестики-Нолики by dr_brown ver.1.2");
 	Image icon;
 	icon.loadFromFile("tic.png");
 	window.setIcon(32, 32, icon.getPixelsPtr());
